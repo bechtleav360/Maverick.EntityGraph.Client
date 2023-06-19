@@ -1,4 +1,4 @@
-# EntityGraph Client
+# Maverick EntityGraph Client
 This is a Python client for the [Maverick EntityGraph](https://github.com/bechtleav360/Maverick.EntityGraph).
 ## Requirements.
 
@@ -35,4 +35,5 @@ app_api = client.applications_api
 api_response = app_api.list_applications()
 
 pprint(api_response)
+
 ```
