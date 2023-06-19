@@ -16,7 +16,7 @@ class BaseApiClient:
         })
 
         response = requests.request(method, url, headers=headers, params=params,
-                                    data=json.dumps(data) if data else None, verify=self.ignore_ssl)
+                                    data=json.dumps(data) if data else None, verify=not self.ignore_ssl)
 
         if response.status_code in range(200, 300):
             return response.json()
