@@ -8,7 +8,7 @@ class BaseApiClient:
         self.api_key = api_key
         self.ignore_ssl = ignore_ssl
 
-    def make_request(self, method, endpoint, headers=None, params=None, data=None):
+    def make_request(self, method, endpoint, headers=None, params=None, data=None, files=None):
         url = f"{self.base_url}/{endpoint}"
         headers = headers or {}
         headers.update({
@@ -16,7 +16,7 @@ class BaseApiClient:
         })
 
         response = requests.request(method, url, headers=headers, params=params,
-                                    data=json.dumps(data) if data else None, verify=not self.ignore_ssl)
+                                    data=json.dumps(data) if data else None, files=files, verify=not self.ignore_ssl)
 
         if response.status_code in range(200, 300):
             return response.json()

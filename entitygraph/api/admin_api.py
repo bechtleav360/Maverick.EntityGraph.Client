@@ -1,3 +1,6 @@
+import io
+from pathlib import Path
+
 from entitygraph.base_client import BaseApiClient
 
 
@@ -29,18 +32,21 @@ class AdminAPI(BaseApiClient):
         return self.make_request('POST', endpoint, headers=headers)
 
     # admin
-    def import_file(self, mimetype, file_mono, application_label='default'):
+
+    def import_file(self, mimetype, file_path: Path, application_label='default'):
         endpoint = "/api/admin/bulk/import/file"
         headers = {'X-Application': application_label}
         params = {'mimetype': mimetype}
-        files = {'fileMono': file_mono}
-        return self.make_request('POST', endpoint, params=params, headers=headers, files=files)
+        with open(file_path, 'rb') as file_mono:
+            files = {'fileMono': (file_path.name, file_mono)}
+            return self.make_request('POST', endpoint, params=params, headers=headers, files=files)
 
-    def import_entities(self, mimetype, rdf_data, application_label='default'):
+    def import_entities(self, mimetype, rdf_data: str, application_label='default'):
         endpoint = "/api/admin/bulk/import/entities"
         headers = {'X-Application': application_label, 'Content-Type': 'application/octet-stream'}
         params = {'mimetype': mimetype}
-        return self.make_request('POST', endpoint, params=params, headers=headers, data=rdf_data)
+        data = io.BytesIO(rdf_data.encode())
+        return self.make_request('POST', endpoint, params=params, headers=headers, data=data)
 
     def reset_repository(self, name, application_label='default'):
         endpoint = "/api/admin/bulk/reset"
