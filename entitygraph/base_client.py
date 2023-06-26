@@ -19,7 +19,14 @@ class BaseApiClient:
                                     data=json.dumps(data) if data else None, files=files, verify=not self.ignore_ssl)
 
         if response.status_code in range(200, 300):
-            return response.json()
+            content_type = response.headers.get('Content-Type', '')
+            if 'application/json' in content_type or 'application/ld+json' in content_type:
+                try:
+                    return response.json()
+                except ValueError:
+                    return response.text
+            else:
+                return response.text
         else:
             return response.status_code, response.text
 

@@ -7,49 +7,49 @@ from entitygraph.base_client import BaseApiClient
 class AdminAPI(BaseApiClient):
     # jobs-ctrl
     def exec_replace_subject_identifiers_job(self, application_label='default'):
-        endpoint = "/api/admin/jobs/execute/normalize/subjectIdentifiers"
+        endpoint = "api/admin/jobs/execute/normalize/subjectIdentifiers"
         headers = {'X-Application': application_label}
         return self.make_request('POST', endpoint, headers=headers)
 
     def exec_replace_object_identifiers_job(self, application_label='default'):
-        endpoint = "/api/admin/jobs/execute/normalize/objectIdentifiers"
+        endpoint = "api/admin/jobs/execute/normalize/objectIdentifiers"
         headers = {'X-Application': application_label}
         return self.make_request('POST', endpoint, headers=headers)
 
     def exec_export_job(self, application_label='default'):
-        endpoint = "/api/admin/jobs/execute/export"
+        endpoint = "api/admin/jobs/execute/export"
         headers = {'X-Application': application_label}
         return self.make_request('POST', endpoint, headers=headers)
 
     def exec_deduplication_job(self, application_label='default'):
-        endpoint = "/api/admin/jobs/execute/deduplication"
+        endpoint = "api/admin/jobs/execute/deduplication"
         headers = {'X-Application': application_label}
         return self.make_request('POST', endpoint, headers=headers)
 
     def exec_coercion_job(self, application_label='default'):
-        endpoint = "/api/admin/jobs/execute/coercion"
+        endpoint = "api/admin/jobs/execute/coercion"
         headers = {'X-Application': application_label}
         return self.make_request('POST', endpoint, headers=headers)
 
     # admin
 
-    def import_file(self, mimetype, file_path: Path, application_label='default'):
-        endpoint = "/api/admin/bulk/import/file"
+    def import_file(self, file_path: Path, file_mimetype='text/turtle', repository='entities', application_label='default'):
+        endpoint = "api/admin/bulk/import/file"
+        params = {'repository': repository, 'mimetype': file_mimetype}
         headers = {'X-Application': application_label}
-        params = {'mimetype': mimetype}
         with open(file_path, 'rb') as file_mono:
             files = {'fileMono': (file_path.name, file_mono)}
             return self.make_request('POST', endpoint, params=params, headers=headers, files=files)
 
-    def import_entities(self, mimetype, rdf_data: str, application_label='default'):
-        endpoint = "/api/admin/bulk/import/entities"
-        headers = {'X-Application': application_label, 'Content-Type': 'application/octet-stream'}
-        params = {'mimetype': mimetype}
+    def import_content(self, repository, accept, rdf_data: str, application_label='default', request_mimetype='application/ld+json'):
+        endpoint = "api/admin/bulk/import/content"
+        params = {'repository': repository}
+        headers = {'X-Application': application_label, 'Content-Type': request_mimetype, 'Accept': accept}
         data = io.BytesIO(rdf_data.encode())
         return self.make_request('POST', endpoint, params=params, headers=headers, data=data)
 
-    def reset_repository(self, name, application_label='default'):
-        endpoint = "/api/admin/bulk/reset"
+    def reset(self, repository='entities', application_label='default'):
+        endpoint = "api/admin/bulk/reset"
+        params = {'repository': repository}
         headers = {'X-Application': application_label}
-        params = {'name': name}
         return self.make_request('GET', endpoint, params=params, headers=headers)
