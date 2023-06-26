@@ -10,6 +10,8 @@ class Client:
         self._admin_api = None
         self._transactions_api = None
         self._applications_api = None
+        self._entities_api = None
+        self._query_api = None
 
     @property
     def admin_api(self):
