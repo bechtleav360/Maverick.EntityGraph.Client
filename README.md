@@ -22,7 +22,6 @@ Please follow the [installation procedure](#installation--usage) and then run th
 
 ```python
 import entitygraph
-from pprint import pprint
 
 # Defining the host is optional and defaults to https://entitygraph.azurewebsites.net
 client = entitygraph.Client(api_key="123")
@@ -31,6 +30,6 @@ app_api = client.applications_api
 
 api_response = app_api.list_applications()
 
-pprint(api_response)
+print(api_response)
 
 ```

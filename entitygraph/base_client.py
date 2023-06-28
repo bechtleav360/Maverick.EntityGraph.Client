@@ -25,9 +25,7 @@ class BaseApiClient:
         response: Response = requests.request(method, url, headers=headers, params=params,
                                               data=data, files=files, verify=not self.ignore_ssl)
 
-        api_response: ApiResponse = ApiResponse(response.status_code, response.text)
+        if response.status_code not in range(200, 300):
+            raise Exception(f"Request failed with status {response.status_code}. Response: {response.text}")
 
-        if not api_response.success:
-            raise Exception(f"Request failed with status {api_response.code}. Response: {api_response.text}")
-
-        return api_response
+        return ApiResponse(response.status_code, response.text)
