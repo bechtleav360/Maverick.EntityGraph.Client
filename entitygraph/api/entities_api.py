@@ -1,10 +1,11 @@
+from entitygraph.api_response import ApiResponse
 from entitygraph.base_client import BaseApiClient
 
 
 class EntitiesAPI(BaseApiClient):
     # Annotations
     def create_link(self, source_id: str, prefixed_key: str, target_id: str, application_label: str = 'default',
-                    response_mimetype: str = 'text/turtle'):
+                    response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Create edge to existing entity identified by target id (within the same dataset).
         """
@@ -13,7 +14,7 @@ class EntitiesAPI(BaseApiClient):
         return self.make_request('PUT', endpoint, headers=headers)
 
     def delete_link(self, source_id: str, prefixed_key: str, target_id: str, application_label: str = 'default',
-                    response_mimetype: str = 'text/turtle'):
+                    response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Deletes edge to existing entity identified by target id.
         """
@@ -22,7 +23,7 @@ class EntitiesAPI(BaseApiClient):
         return self.make_request('DELETE', endpoint, headers=headers)
 
     def set_value(self, id: str, prefixed_key: str, value: str, lang: str = None, filename: str = None, application_label: str = 'default',
-                  response_mimetype: str = 'text/turtle'):
+                  response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Sets a specific value.
 
@@ -38,7 +39,7 @@ class EntitiesAPI(BaseApiClient):
         return self.make_request('POST', endpoint, headers=headers, data=value, params=params)
 
     def remove_value(self, id: str, prefixed_key: str, lang: str = None, application_label: str = 'default',
-                     response_mimetype: str = 'text/turtle'):
+                     response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Removes a property value.
         """
@@ -47,7 +48,7 @@ class EntitiesAPI(BaseApiClient):
         params = {'lang': lang} if lang else None
         return self.make_request('DELETE', endpoint, headers=headers, params=params)
 
-    def get_value_list(self, id: str, application_label: str = 'default', response_mimetype: str = 'text/turtle'):
+    def get_value_list(self, id: str, application_label: str = 'default', response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Returns a list of value properties of the selected entity.
         """
@@ -56,7 +57,7 @@ class EntitiesAPI(BaseApiClient):
         return self.make_request('GET', endpoint, headers=headers)
 
     def create_or_update_value_list(self, id: str, values: str | dict, application_label: str = 'default',
-                                    response_mimetype: str = 'text/turtle'):
+                                    response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Create or update multiple value properties for the selected entity.
         """
@@ -64,7 +65,7 @@ class EntitiesAPI(BaseApiClient):
         headers = {'X-Application': application_label, 'Content-Type': 'application/json', 'Accept': response_mimetype}
         return self.make_request('POST', endpoint, headers=headers, data=values)
 
-    def get_links_by_type(self, id: str, prefixed_key: str, application_label: str = 'default', response_mimetype: str = 'text/turtle'):
+    def get_links_by_type(self, id: str, prefixed_key: str, application_label: str = 'default', response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Returns all links of the given type.
         """
@@ -72,7 +73,7 @@ class EntitiesAPI(BaseApiClient):
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
         return self.make_request('GET', endpoint, headers=headers)
 
-    def get_all_links(self, id: str, application_label: str = 'default', response_mimetype: str = 'text/turtle'):
+    def get_all_links(self, id: str, application_label: str = 'default', response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Returns all links of an entity.
         """
@@ -82,7 +83,7 @@ class EntitiesAPI(BaseApiClient):
 
     # Details
     def create_detail(self, entity_id: str, property_type: str, prefixed_value_key: str, prefixed_detail_key: str,
-                      application_label: str = 'default', response_mimetype: str = 'text/turtle'):
+                      application_label: str = 'default', response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Creates a statement about a statement use the post body as value.
 
@@ -94,7 +95,7 @@ class EntitiesAPI(BaseApiClient):
         return self.make_request('POST', endpoint, headers=headers)
 
     def get_details(self, entity_id: str, property_type: str, prefixed_value_key: str, hash_value: bool, application_label: str = 'default',
-                    response_mimetype: str = 'text/turtle'):
+                    response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Returns all details for a value or link
 
@@ -107,7 +108,7 @@ class EntitiesAPI(BaseApiClient):
         return self.make_request('GET', endpoint, headers=headers, params=params)
 
     def create_link_detail(self, id: str, property_type: str, prefixed_value_key: str, triples: str, application_label: str = 'default',
-                           response_mimetype: str = 'text/turtle'):
+                           response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Creates a statement about a statement use the post body as value.
 
@@ -119,7 +120,7 @@ class EntitiesAPI(BaseApiClient):
         return self.make_request('POST', endpoint, data=triples, headers=headers)
 
     def delete_detail(self, id: str, prefixed_value_key: str, prefixed_detail_key: str, multiple: bool = None, hash: str = None,
-                      application_label: str = 'default', response_mimetype: str = 'text/turtle'):
+                      application_label: str = 'default', response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Delete a specific detail for a value
 
@@ -130,7 +131,8 @@ class EntitiesAPI(BaseApiClient):
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
         return self.make_request('DELETE', endpoint, params=params, headers=headers)
 
-    def purge_details(self, id: str, prefixed_value_key: str, application_label: str = 'default', response_mimetype: str = 'text/turtle'):
+    def purge_details(self, id: str, prefixed_value_key: str, application_label: str = 'default',
+                      response_mimetype: str = 'text/turtle') -> ApiResponse:
         """
         Purge all details for a value
 
@@ -142,7 +144,8 @@ class EntitiesAPI(BaseApiClient):
 
     # Entities
 
-    def list(self, limit: int = 100, offset: int = 0, application_label: str = 'default', response_mimetype: str = 'application/ld+json'):
+    def list(self, limit: int = 100, offset: int = 0, application_label: str = 'default',
+             response_mimetype: str = 'application/ld+json') -> ApiResponse:
         """
         :param response_mimetype: application/ld+json, text/turtle or text/n3
         """
@@ -151,13 +154,14 @@ class EntitiesAPI(BaseApiClient):
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
         return self.make_request('GET', endpoint, headers=headers, params=params)
 
-    def create(self, data: str | dict, application_label: str = 'default', request_mimetype: str = 'application/ld+json',
-               response_mimetype: str = 'application/ld+json'):
+    def create(self, data: str | dict, application_label: str = 'default',
+               request_mimetype: str = 'application/ld+json', response_mimetype: str = 'application/ld+json') -> ApiResponse:
         endpoint = 'api/entities'
         headers = {'X-Application': application_label, 'Content-Type': request_mimetype, 'Accept': response_mimetype}
         return self.make_request('POST', endpoint, headers=headers, data=data)
 
-    def read(self, id: str, property: str = None, application_label: str = 'default', response_mimetype: str = 'application/ld+json'):
+    def read(self, id: str, property: str = None, application_label: str = 'default',
+             response_mimetype: str = 'application/ld+json') -> ApiResponse:
         """
         Returns an entity with the given unique identifier.
         """
@@ -166,13 +170,14 @@ class EntitiesAPI(BaseApiClient):
         params = {'property': property} if property else None
         return self.make_request('GET', endpoint, headers=headers, params=params)
 
-    def delete(self, id: str, application_label: str = 'default', response_mimetype: str = 'application/ld+json'):
+    def delete(self, id: str, application_label: str = 'default',
+               response_mimetype: str = 'application/ld+json') -> ApiResponse:
         endpoint = f'api/entities/{id}'
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
         return self.make_request('DELETE', endpoint, headers=headers)
 
-    def embed(self, id: str, prefixedKey: str, data: str | dict, application_label: str = 'default', request_mimetype: str = 'application/ld+json',
-              response_mimetype: str = 'application/ld+json'):
+    def embed(self, id: str, prefixedKey: str, data: str | dict, application_label: str = 'default',
+              request_mimetype: str = 'application/ld+json', response_mimetype: str = 'application/ld+json') -> ApiResponse:
         endpoint = f'api/entities/{id}/{prefixedKey}'
         headers = {'X-Application': application_label, 'Content-Type': request_mimetype, 'Accept': response_mimetype}
         return self.make_request('POST', endpoint, headers=headers, data=data)
