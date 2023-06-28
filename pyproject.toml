@@ -6,12 +6,14 @@ build-backend = "setuptools.build_meta"
 name = "entitygraph"
 version = "0.0.2"
 description = "Python client for Maverick EntityGraph API"
-authors = ["Bechtle A/V Software Solutions 360° <mail@a365maverick.de>"]
-license = "Apache 2.0"
+authors = [{name = "Bechtle A/V Software Solutions 360°", email = "mail@a365maverick.de"}]
+license = { text = "Apache 2.0" }
 readme = "README.md"
 repository = "https://github.com/mumi/entitygraph-client"
 keywords = ["Maverick", "EntityGraph", "API"]
-include = ["entitygraph/py.typed"]
+
+[project.urls]
+Source = "https://github.com/mumi/entitygraph-client"
 
 [project.dependencies]
 python = "^3.7"
