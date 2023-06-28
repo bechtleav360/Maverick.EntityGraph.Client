@@ -10,7 +10,7 @@ class ApplicationsAPI(BaseApiClient):
         :return: List of applications
         """
         endpoint = "api/applications"
-        return self.make_request('GET', endpoint)
+        return self._make_request('GET', endpoint)
 
     def create_application(self, application_data: dict) -> ApiResponse | Exception:
         """
@@ -19,7 +19,7 @@ class ApplicationsAPI(BaseApiClient):
         """
         endpoint = "api/applications"
         headers = {'Content-Type': 'application/json'}
-        return self.make_request('POST', endpoint, data=application_data)
+        return self._make_request('POST', endpoint, data=application_data)
 
     def list_subscriptions(self, application_key: str) -> ApiResponse | Exception:
         """
@@ -27,7 +27,7 @@ class ApplicationsAPI(BaseApiClient):
         :return: List of subscriptions
         """
         endpoint = f"api/applications/{application_key}/subscriptions"
-        return self.make_request('GET', endpoint)
+        return self._make_request('GET', endpoint)
 
     def generate_key(self, application_key: str, key_request: dict) -> ApiResponse | Exception:
         """
@@ -39,7 +39,7 @@ class ApplicationsAPI(BaseApiClient):
         """
         endpoint = f"api/applications/{application_key}/subscriptions"
         headers = {'Content-Type': 'application/json'}
-        return self.make_request('POST', endpoint, data=key_request)
+        return self._make_request('POST', endpoint, data=key_request)
 
     def create_configuration(self, application_key: str, configuration_key: str, configuration_data: str | dict) -> ApiResponse | Exception:
         """
@@ -49,7 +49,7 @@ class ApplicationsAPI(BaseApiClient):
         :return: Application
         """
         endpoint = f"api/applications/{application_key}/configuration/{configuration_key}"
-        return self.make_request('POST', endpoint, data=configuration_data)
+        return self._make_request('POST', endpoint, data=configuration_data)
 
     def delete_configuration(self, application_key: str, configuration_key: str) -> ApiResponse | Exception:
         """
@@ -58,7 +58,7 @@ class ApplicationsAPI(BaseApiClient):
         :return: Application
         """
         endpoint = f"api/applications/{application_key}/configuration/{configuration_key}"
-        return self.make_request('DELETE', endpoint)
+        return self._make_request('DELETE', endpoint)
 
     def query_application(self, query: str, response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
         """
@@ -67,7 +67,7 @@ class ApplicationsAPI(BaseApiClient):
         """
         endpoint = "api/applications/query"
         headers = {'Content-Type': 'text/plain', 'Accept': response_mimetype}
-        return self.make_request('POST', endpoint, data=query)
+        return self._make_request('POST', endpoint, data=query)
 
     def get_application(self, application_key: str) -> ApiResponse | Exception:
         """
@@ -75,14 +75,14 @@ class ApplicationsAPI(BaseApiClient):
         :return: Application
         """
         endpoint = f"api/applications/{application_key}"
-        return self.make_request('GET', endpoint)
+        return self._make_request('GET', endpoint)
 
     def delete_application(self, application_key: str) -> ApiResponse | Exception:
         """
         :param application_key: Application key
         """
         endpoint = f"api/applications/{application_key}"
-        return self.make_request('DELETE', endpoint)
+        return self._make_request('DELETE', endpoint)
 
     def revoke_token(self, application_key: str, label: str) -> ApiResponse | Exception:
         """
@@ -90,4 +90,4 @@ class ApplicationsAPI(BaseApiClient):
         :param label: Subscription label
         """
         endpoint = f"api/applications/{application_key}/subscriptions/{label}"
-        return self.make_request('DELETE', endpoint)
+        return self._make_request('DELETE', endpoint)

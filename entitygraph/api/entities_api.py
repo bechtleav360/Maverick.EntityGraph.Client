@@ -17,7 +17,7 @@ class EntitiesAPI(BaseApiClient):
         """
         endpoint = f"api/entities/{source_id}/links/{prefixed_key}/{target_id}"
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
-        return self.make_request('PUT', endpoint, headers=headers)
+        return self._make_request('PUT', endpoint, headers=headers)
 
     def delete_link(self, source_id: str, prefixed_key: str, target_id: str, application_label: str = 'default',
                     response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
@@ -32,7 +32,7 @@ class EntitiesAPI(BaseApiClient):
         """
         endpoint = f"api/entities/{source_id}/links/{prefixed_key}/{target_id}"
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
-        return self.make_request('DELETE', endpoint, headers=headers)
+        return self._make_request('DELETE', endpoint, headers=headers)
 
     def set_value(self, entity_id: str, prefixed_key: str, value: str, lang: str = None, filename: str = None, application_label: str = 'default',
                   response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
@@ -52,7 +52,7 @@ class EntitiesAPI(BaseApiClient):
             'Accept': response_mimetype
         }
         params = {'lang': lang, 'filename': filename} if lang or filename else None
-        return self.make_request('POST', endpoint, headers=headers, data=value, params=params)
+        return self._make_request('POST', endpoint, headers=headers, data=value, params=params)
 
     def remove_value(self, entity_id: str, prefixed_key: str, lang: str = None, application_label: str = 'default',
                      response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
@@ -67,7 +67,7 @@ class EntitiesAPI(BaseApiClient):
         endpoint = f"api/entities/{entity_id}/values/{prefixed_key}"
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
         params = {'lang': lang} if lang else None
-        return self.make_request('DELETE', endpoint, headers=headers, params=params)
+        return self._make_request('DELETE', endpoint, headers=headers, params=params)
 
     def get_value_list(self, entity_id: str, application_label: str = 'default', response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
         """
@@ -78,7 +78,7 @@ class EntitiesAPI(BaseApiClient):
         """
         endpoint = f"api/entities/{entity_id}/values"
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
-        return self.make_request('GET', endpoint, headers=headers)
+        return self._make_request('GET', endpoint, headers=headers)
 
     def create_or_update_value_list(self, entity_id: str, values: str | dict, application_label: str = 'default',
                                     response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
@@ -91,7 +91,7 @@ class EntitiesAPI(BaseApiClient):
         """
         endpoint = f"api/entities/{entity_id}/values"
         headers = {'X-Application': application_label, 'Content-Type': 'application/json', 'Accept': response_mimetype}
-        return self.make_request('POST', endpoint, headers=headers, data=values)
+        return self._make_request('POST', endpoint, headers=headers, data=values)
 
     def get_links_by_type(self, entity_id: str, prefixed_key: str, application_label: str = 'default',
                           response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
@@ -104,7 +104,7 @@ class EntitiesAPI(BaseApiClient):
         """
         endpoint = f"api/entities/{entity_id}/links/{prefixed_key}"
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
-        return self.make_request('GET', endpoint, headers=headers)
+        return self._make_request('GET', endpoint, headers=headers)
 
     def get_all_links(self, entity_id: str, application_label: str = 'default',
                       response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
@@ -116,7 +116,7 @@ class EntitiesAPI(BaseApiClient):
         """
         endpoint = f"api/entities/{entity_id}/links"
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
-        return self.make_request('GET', endpoint, headers=headers)
+        return self._make_request('GET', endpoint, headers=headers)
 
     # Details
     def create_detail(self, entity_id: str, property_type: str, prefixed_value_key: str, prefixed_detail_key: str,
@@ -132,7 +132,7 @@ class EntitiesAPI(BaseApiClient):
         """
         endpoint = f"api/entities/{entity_id}/{property_type}/{prefixed_value_key}/details/{prefixed_detail_key}"
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
-        return self.make_request('POST', endpoint, headers=headers)
+        return self._make_request('POST', endpoint, headers=headers)
 
     def get_details(self, entity_id: str, property_type: str, prefixed_value_key: str, hash_value: bool,
                     application_label: str = 'default', response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
@@ -148,7 +148,7 @@ class EntitiesAPI(BaseApiClient):
         endpoint = f"api/entities/{entity_id}/{property_type}/{prefixed_value_key}/details"
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
         params = {'hash': hash_value}
-        return self.make_request('GET', endpoint, headers=headers, params=params)
+        return self._make_request('GET', endpoint, headers=headers, params=params)
 
     def create_link_detail(self, entity_id: str, property_type: str, prefixed_value_key: str, triples: str,
                            application_label: str = 'default', response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
@@ -163,7 +163,7 @@ class EntitiesAPI(BaseApiClient):
         """
         endpoint = f"api/entities/{entity_id}/{property_type}/{prefixed_value_key}/details"
         headers = {'X-Application': application_label, 'Content-Type': 'text/x-turtlestar', 'Accept': response_mimetype}
-        return self.make_request('POST', endpoint, data=triples, headers=headers)
+        return self._make_request('POST', endpoint, data=triples, headers=headers)
 
     def delete_detail(self, entity_id: str, prefixed_value_key: str, prefixed_detail_key: str, multiple: bool = None, hash: str = None,
                       application_label: str = 'default', response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
@@ -179,7 +179,7 @@ class EntitiesAPI(BaseApiClient):
         endpoint = f"api/entities/{entity_id}/values/{prefixed_value_key}/details/{prefixed_detail_key}"
         params = {'multiple': multiple, 'hash': hash}
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
-        return self.make_request('DELETE', endpoint, params=params, headers=headers)
+        return self._make_request('DELETE', endpoint, params=params, headers=headers)
 
     def purge_details(self, entity_id: str, prefixed_value_key: str, application_label: str = 'default',
                       response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
@@ -192,7 +192,7 @@ class EntitiesAPI(BaseApiClient):
         """
         endpoint = f"api/entities/{entity_id}/values/{prefixed_value_key}/details"
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
-        return self.make_request('DELETE', endpoint, headers=headers)
+        return self._make_request('DELETE', endpoint, headers=headers)
 
     # Entities
 
@@ -207,7 +207,7 @@ class EntitiesAPI(BaseApiClient):
         """
         endpoint = f'api/entities/{entity_id}/{prefixed_key}'
         headers = {'X-Application': application_label, 'Content-Type': request_mimetype, 'Accept': response_mimetype}
-        return self.make_request('POST', endpoint, headers=headers, data=data)
+        return self._make_request('POST', endpoint, headers=headers, data=data)
 
     def list(self, limit: int = 100, offset: int = 0, application_label: str = 'default',
              response_mimetype: str = 'application/ld+json') -> ApiResponse | Exception:
@@ -222,7 +222,7 @@ class EntitiesAPI(BaseApiClient):
         endpoint = 'api/entities'
         params = {'limit': limit, 'offset': offset}
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
-        return self.make_request('GET', endpoint, headers=headers, params=params)
+        return self._make_request('GET', endpoint, headers=headers, params=params)
 
     def create(self, data: str | dict, application_label: str = 'default',
                request_mimetype: str = 'application/ld+json', response_mimetype: str = 'application/ld+json') -> ApiResponse | Exception:
@@ -234,7 +234,7 @@ class EntitiesAPI(BaseApiClient):
         """
         endpoint = 'api/entities'
         headers = {'X-Application': application_label, 'Content-Type': request_mimetype, 'Accept': response_mimetype}
-        return self.make_request('POST', endpoint, headers=headers, data=data)
+        return self._make_request('POST', endpoint, headers=headers, data=data)
 
     def read(self, entity_id: str, property: str = None, application_label: str = 'default',
              response_mimetype: str = 'application/ld+json') -> ApiResponse | Exception:
@@ -248,7 +248,7 @@ class EntitiesAPI(BaseApiClient):
         endpoint = f'api/entities/{entity_id}'
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
         params = {'property': property} if property else None
-        return self.make_request('GET', endpoint, headers=headers, params=params)
+        return self._make_request('GET', endpoint, headers=headers, params=params)
 
     def delete(self, entity_id: str, application_label: str = 'default',
                response_mimetype: str = 'application/ld+json') -> ApiResponse | Exception:
@@ -260,4 +260,4 @@ class EntitiesAPI(BaseApiClient):
         """
         endpoint = f'api/entities/{entity_id}'
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
-        return self.make_request('DELETE', endpoint, headers=headers)
+        return self._make_request('DELETE', endpoint, headers=headers)

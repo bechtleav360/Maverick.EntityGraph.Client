@@ -10,7 +10,7 @@ class TransactionsAPI(BaseApiClient):
         """
         endpoint = f"api/transactions/{transaction_id}"
         headers = {'Accept': response_mimetype}
-        return self.make_request('GET', endpoint, headers=headers)
+        return self._make_request('GET', endpoint, headers=headers)
 
     def list_transactions(self, limit: int = 100, offset: int = 0,
                           response_mimetype: str = 'application/ld+json') -> ApiResponse | Exception:
@@ -22,4 +22,4 @@ class TransactionsAPI(BaseApiClient):
         endpoint = "api/transactions"
         params = {"limit": limit, "offset": offset}
         headers = {'Accept': response_mimetype}
-        return self.make_request('GET', endpoint, params=params, headers=headers)
+        return self._make_request('GET', endpoint, params=params, headers=headers)

@@ -14,7 +14,7 @@ class QueryAPI(BaseApiClient):
         endpoint = "api/query/select"
         params = {'repository': repository}
         headers = {'X-Application': application_label, 'Content-Type': 'text/plain', 'Accept': response_mimetype}
-        return self.make_request('POST', endpoint, headers=headers, params=params, data=query)
+        return self._make_request('POST', endpoint, headers=headers, params=params, data=query)
 
     def construct(self, query: str, repository: str = 'entities', application_label: str = 'default',
                   response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
@@ -27,4 +27,4 @@ class QueryAPI(BaseApiClient):
         endpoint = "api/query/construct"
         params = {'repository': repository}
         headers = {'X-Application': application_label, 'Content-Type': 'text/plain', 'Accept': response_mimetype}
-        return self.make_request('POST', endpoint, headers=headers, params=params, data=query)
+        return self._make_request('POST', endpoint, headers=headers, params=params, data=query)

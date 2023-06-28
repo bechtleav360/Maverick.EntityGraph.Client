@@ -12,7 +12,7 @@ class BaseApiClient:
         self.api_key = api_key
         self.ignore_ssl = ignore_ssl
 
-    def make_request(self, method, endpoint, headers=None, params=None, data=None, files=None):
+    def _make_request(self, method, endpoint, headers=None, params=None, data=None, files=None):
         url = f"{self.base_url}/{endpoint}"
         headers = headers or {}
         headers.update({
