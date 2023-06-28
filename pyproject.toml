@@ -10,8 +10,8 @@ authors = [{name = "Bechtle A/V Software Solutions 360°", email = "mail@a365mav
 license = { text = "Apache 2.0" }
 readme = "README.md"
 keywords = ["Maverick", "EntityGraph", "API"]
+requires-python = ">=3.7"
 dependencies = [
-    "python >= 3.7",
     "requests >= 2.31.0",
     "python-dateutil >= 2.8.2",
     "aenum >= 3.1.11"
