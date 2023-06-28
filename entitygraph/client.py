@@ -2,7 +2,7 @@ from entitygraph.api import AdminAPI, TransactionsAPI, ApplicationsAPI, QueryAPI
 
 
 class Client:
-    def __init__(self, api_key: str, host: str = "https://entitygraph.azurewebsites.net/",
+    def __init__(self, api_key: str, host: str = "https://entitygraph.azurewebsites.net",
                  ignore_ssl: bool = False):
         self.base_url = host
         self.api_key = api_key

@@ -6,9 +6,6 @@ Python 3.7+
 
 ## Installation & Usage
 ### pip install
-
-If the python package is hosted on a repository, you can install directly using:
-
 ```sh
 pip install git+https://github.com/mumi/entitygraph-client.git
 ```
@@ -27,7 +24,7 @@ Please follow the [installation procedure](#installation--usage) and then run th
 import entitygraph
 from pprint import pprint
 
-# Defining the host is optional and defaults to https://entitygraph.azurewebsites.net/
+# Defining the host is optional and defaults to https://entitygraph.azurewebsites.net
 client = entitygraph.Client(api_key="123")
 
 app_api = client.applications_api

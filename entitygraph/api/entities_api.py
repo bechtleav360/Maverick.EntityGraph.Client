@@ -151,7 +151,7 @@ class EntitiesAPI(BaseApiClient):
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
         return self.make_request('GET', endpoint, headers=headers, params=params)
 
-    def create(self, data, application_label: str = 'default', request_mimetype: str = 'application/ld+json',
+    def create(self, data: str | dict, application_label: str = 'default', request_mimetype: str = 'application/ld+json',
                response_mimetype: str = 'application/ld+json'):
         endpoint = 'api/entities'
         headers = {'X-Application': application_label, 'Content-Type': request_mimetype, 'Accept': response_mimetype}
@@ -171,7 +171,7 @@ class EntitiesAPI(BaseApiClient):
         headers = {'X-Application': application_label, 'Accept': response_mimetype}
         return self.make_request('DELETE', endpoint, headers=headers)
 
-    def embed(self, id: str, prefixedKey: str, data, application_label: str = 'default', request_mimetype: str = 'application/ld+json',
+    def embed(self, id: str, prefixedKey: str, data: str | dict, application_label: str = 'default', request_mimetype: str = 'application/ld+json',
               response_mimetype: str = 'application/ld+json'):
         endpoint = f'api/entities/{id}/{prefixedKey}'
         headers = {'X-Application': application_label, 'Content-Type': request_mimetype, 'Accept': response_mimetype}
