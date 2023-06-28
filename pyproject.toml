@@ -12,9 +12,8 @@ readme = "README.md"
 repository = "https://github.com/mumi/entitygraph-client"
 keywords = ["Maverick", "EntityGraph", "API"]
 dependencies = [
-    "python ^3.7",
-    "requests >=2.31.0",
-    "python-dateutil >=2.8.2",
-    "pydantic ^1.10.5, <2",
-    "aenum >=3.1.11"
+    "python >= 3.7",
+    "requests >= 2.31.0",
+    "python-dateutil >= 2.8.2",
+    "aenum >= 3.1.11"
 ]
