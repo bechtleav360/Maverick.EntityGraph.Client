@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "entitygraph"
-version = "0.0.1"
+version = "0.0.2"
 description = "Python client for Maverick EntityGraph API"
 authors = ["Bechtle A/V Software Solutions 360° <mail@a365maverick.de>"]
 license = "Apache 2.0"

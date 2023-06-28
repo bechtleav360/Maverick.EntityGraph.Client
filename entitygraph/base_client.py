@@ -1,6 +1,8 @@
 import requests
 import json
 
+from requests import Response
+
 from entitygraph.api_response import ApiResponse
 
 
@@ -20,7 +22,12 @@ class BaseApiClient:
         if data and isinstance(data, dict):
             data = json.dumps(data)
 
-        response = requests.request(method, url, headers=headers, params=params,
-                                    data=data, files=files, verify=not self.ignore_ssl)
+        response: Response = requests.request(method, url, headers=headers, params=params,
+                                              data=data, files=files, verify=not self.ignore_ssl)
 
-        return ApiResponse(response.status_code, response.text)
+        api_response: ApiResponse = ApiResponse(response.status_code, response.text)
+
+        if not api_response.success:
+            raise Exception(f"Request failed with status {api_response.code}. Response: {api_response.text}")
+
+        return api_response
