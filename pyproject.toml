@@ -1,4 +1,8 @@
-[tool.poetry]
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
 name = "entitygraph"
 version = "0.0.2"
 description = "Python client for Maverick EntityGraph API"
@@ -9,7 +13,7 @@ repository = "https://github.com/mumi/entitygraph-client"
 keywords = ["Maverick", "EntityGraph", "API"]
 include = ["entitygraph/py.typed"]
 
-[tool.poetry.dependencies]
+[project.dependencies]
 python = "^3.7"
 
 requests = ">=2.31.0"
@@ -17,14 +21,3 @@ python-dateutil = ">=2.8.2"
 pydantic = "^1.10.5, <2"
 aenum = ">=3.1.11"
 
-
-[tool.poetry.dev-dependencies]
-tox = ">=3.9.0"
-flake8 = ">=4.0.0"
-
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
-[tool.pylint.'MESSAGES CONTROL']
-extension-pkg-whitelist = "pydantic"
