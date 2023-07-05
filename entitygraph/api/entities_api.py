@@ -35,7 +35,7 @@ class EntitiesAPI(BaseApiClient):
         return self._make_request('DELETE', endpoint, headers=headers)
 
     def set_value(self, entity_id: str, prefixed_key: str, value: str, lang: str = None, filename: str = None, application_label: str = 'default',
-                  response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
+                  request_mimetype: str = 'text/plain', response_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
         """
         Sets a specific value.
 
@@ -43,12 +43,13 @@ class EntitiesAPI(BaseApiClient):
         :param value: Value
         :param lang: Language
         :param filename: Filename
+        :param request_mimetype: text/plain or application/octet-stream
         :param response_mimetype: text/turtle or application/ld+json
         """
         endpoint = f"api/entities/{entity_id}/values/{prefixed_key}"
         headers = {
             'X-Application': application_label,
-            'Content-Type': 'text/plain' if isinstance(value, str) else 'application/octet-stream',
+            'Content-Type': request_mimetype,
             'Accept': response_mimetype
         }
         params = {'lang': lang, 'filename': filename} if lang or filename else None

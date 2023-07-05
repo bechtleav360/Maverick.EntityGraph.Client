@@ -1,7 +1,7 @@
 import requests
 import json
 
-from requests import Response
+from requests import Response, Request, PreparedRequest
 
 from entitygraph.api_response import ApiResponse
 
@@ -22,10 +22,14 @@ class BaseApiClient:
         if data and isinstance(data, dict):
             data = json.dumps(data)
 
-        response: Response = requests.request(method, url, headers=headers, params=params,
-                                              data=data, files=files, verify=not self.ignore_ssl)
+        request: Request = requests.Request(method, url, headers=headers, params=params,
+                                              data=data, files=files)
+
+        with requests.Session() as s:
+            prepared_request: PreparedRequest = s.prepare_request(request)
+            response: Response = s.send(prepared_request, verify=not self.ignore_ssl)
 
         if response.status_code not in range(200, 300):
-            raise Exception(f"Request failed with status {response.status_code}. Response: {response.text}")
+            raise Exception(f"Request {{'url': {request.url}, 'headers': {request.headers}}} failed with status {response.status_code}. Response: {response.text}")
 
-        return ApiResponse(response.status_code, response.text)
+        return ApiResponse(response.status_code, response.text, response.headers)
