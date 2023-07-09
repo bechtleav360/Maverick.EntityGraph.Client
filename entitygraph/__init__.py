@@ -6,8 +6,10 @@ from .api.applications_api import ApplicationsAPI
 from .api.admin_api import AdminAPI
 from .api.query_api import QueryAPI
 from .client import Client
+from .admin import Admin
 from .entity import Entity
 from .query import Query
+from .transaction import Transaction
 from .application import Application
 
 client: Client = None

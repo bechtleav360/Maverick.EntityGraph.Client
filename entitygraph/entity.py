@@ -1,7 +1,9 @@
+import io
 import json
 import os
+from pathlib import Path
 from random import randint
-from typing import List
+from typing import List, BinaryIO, TextIO
 from urllib.parse import urlparse
 
 from rdflib import Graph, Literal, URIRef, XSD
@@ -9,7 +11,6 @@ from rdflib import Graph, Literal, URIRef, XSD
 import entitygraph
 from entitygraph import EntitiesAPI
 from entitygraph.api_response import ApiResponse
-from entitygraph.converter import Converter
 
 
 class EntityIterable:
@@ -58,7 +59,7 @@ class Entity:
             self.__api: EntitiesAPI = entitygraph.client.entities_api
         else:
             raise Exception(
-                "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before creating Entities")
+                "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Entity()")
 
         self._application_label: str = "default"
         self._id: str = None
@@ -108,6 +109,7 @@ class Entity:
         response: ApiResponse = self.__api.read(entity_id, application_label=self._application_label,
                                                 response_mimetype='text/turtle')
         tmp = Entity(data=response.text)
+        tmp._id = entity_id
         tmp._application_label = self._application_label
         return tmp
 
@@ -117,8 +119,7 @@ class Entity:
     def delete_by_id(self, entity_id: str):
         response = self.__api.delete(entity_id, self._application_label)
 
-    def set_value(self, property: str, value: str, datatype: str = 'xsd:string',
-                  language: str = 'en'):
+    def set_value(self, property: str, value: str, language: str = 'en'):
         """
         Sets a specific value.
 
@@ -126,7 +127,6 @@ class Entity:
         :param value: Value (no longer than 255 chars)
         :param datatype: Datatype (defaults to "xsd:string")
         :param language: Language (defaults to "en")
-        :param application: Application (optional)
         """
         if not self._id:
             raise Exception(
@@ -135,16 +135,16 @@ class Entity:
         if len(value) > 255:
             raise ValueError('Value should not be longer than 255 chars')
 
-        if datatype == 'xsd:string':
-            datatype = XSD.string
+        # if datatype == 'xsd:string':
+        #     datatype = XSD.string
 
-        value = Literal(value, datatype=datatype, lang=language)
+        # value = Literal(value, lang=language, datatype=XSD.string)
 
         property = URIRef(property)
 
         return self.__api.set_value(self._id, property, value, language, application_label=self._application_label)
 
-    def set_content(self, property: str, content, filename: str = None,
+    def set_content(self, property: str, content: BinaryIO | TextIO | Path | bytes | str, filename: str = None,
                     language: str = 'en') -> ApiResponse | Exception:
         """
         Sets content.
@@ -153,7 +153,6 @@ class Entity:
         :param content: Content (can be file, path, binary, string)
         :param filename: Filename (optional, can be random string)
         :param language: Language (optional, defaults to "en" for text)
-        :param application: Application (optional)
         """
         # If content is a file path, open the file and read the content
         if not self._id:
@@ -165,7 +164,7 @@ class Entity:
                 content = file.read()
 
         if not filename:
-            filename = f'file_{randint(10000, 99999)}'
+            filename = f'file_{randint(10000, 99999999)}'
 
         # Get the prefix of the property url
         property_url = urlparse(property)
@@ -174,6 +173,21 @@ class Entity:
         # Create the prefixed key
         prefixed_key = f'{prefix}:{property_url.path}'
 
-        return self.__api.set_value(self._id, prefixed_key, content, language, filename,
+        if isinstance(content, str):
+            if Path(content).is_file():
+                with open(content, 'rb') as f:
+                    content_data = f.read()
+            else:
+                content_data = content.encode()
+        elif isinstance(content, Path):
+            with content.open('rb') as f:
+                content_data = f.read()
+        elif isinstance(content, (BinaryIO, TextIO)):
+            content_data = content.read()
+        else:
+            content_data = content
+
+        return self.__api.set_value(self._id, prefixed_key, content_data, language, filename,
                                     application_label=self._application_label,
-                                    response_mimetype='application/octet-stream')
+                                    request_mimetype='application/octet-stream',
+                                    response_mimetype='text/turtle')

@@ -2,7 +2,7 @@ import json
 from typing import Type
 
 import entitygraph
-from entitygraph import ApplicationsAPI, Entity, Query
+from entitygraph import ApplicationsAPI, Entity, Query, Admin
 
 
 class Application:
@@ -12,7 +12,7 @@ class Application:
             self.__api: ApplicationsAPI = entitygraph.client.applications_api
         else:
             raise Exception(
-                "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before creating Applications")
+                "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Application()")
 
         self.label: str = label
         self.key: str = None
@@ -33,6 +33,12 @@ class Application:
         query._application_label = self.label
 
         return query
+
+    def Admin(self) -> 'Admin':
+        admin = Admin()
+        admin._application_label = self.label
+
+        return admin
     def save(self) -> 'Application':
         res: dict = self.__api.create_application({
             "label": self.label,

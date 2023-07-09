@@ -73,15 +73,14 @@ class AdminAPI(BaseApiClient):
         params = {'repository': repository, 'mimetype': file_mimetype}
         headers = {'X-Application': application_label}
         with open(file_path, 'rb') as file_mono:
-            files = {'fileMono': (file_path.name, file_mono)}
+            files = {'fileMono': file_mono}
             return self._make_request('POST', endpoint, params=params, headers=headers, files=files)
 
-    def import_content(self, accept: str, rdf_data: str, repository: str = 'entities', application_label='default',
-                       request_mimetype: str = 'application/ld+json') -> ApiResponse | Exception:
+    def import_content(self, rdf_data: str, repository: str = 'entities', application_label='default',
+                       request_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
         """
         Imports RDF data into the repository
 
-        :param accept: The accept header
         :param rdf_data: The RDF data
         :param repository: The repository to import the file into: entities, schema, transactions, application
         :param application_label: The application label
@@ -89,7 +88,7 @@ class AdminAPI(BaseApiClient):
         """
         endpoint = "api/admin/bulk/import/content"
         params = {'repository': repository}
-        headers = {'X-Application': application_label, 'Content-Type': request_mimetype, 'Accept': accept}
+        headers = {'X-Application': application_label, 'Content-Type': request_mimetype}
         data = io.BytesIO(rdf_data.encode())
         return self._make_request('POST', endpoint, params=params, headers=headers, data=data)
 

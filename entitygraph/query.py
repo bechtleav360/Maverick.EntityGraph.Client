@@ -14,7 +14,7 @@ class Query:
             self.__api: QueryAPI = entitygraph.client.query_api
         else:
             raise Exception(
-                "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before creating Entities")
+                "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Query()")
 
         self._application_label: str = "default"
 
@@ -26,11 +26,11 @@ class Query:
         response = self.__api.select(query, repository, self._application_label, "text/csv")
         return pandas.read_csv(io.StringIO(response.text))
 
-    def construct(self, query: str, response_format: str = "text/turtle") -> Graph:
+    def construct(self, query: str, repository: str = "entities") -> Graph:
         """
         :param query: SPARQL query. For example: 'CONSTRUCT WHERE { ?s ?p ?o . } LIMIT 100'
         :param repository: The repository type in which the query should search: entities, schema, transactions or application
         :param response_format: text/turtle or application/ld+json
         """
-        response = self.__api.construct(query, 'entities', self._application_label, response_format)
-        return response.text
+        response = self.__api.construct(query, repository, self._application_label)
+        return Graph().parse(data=response.text)
