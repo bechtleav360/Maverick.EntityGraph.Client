@@ -1,5 +1,5 @@
 import json
-from typing import Type
+from typing import Type, List
 
 import entitygraph
 from entitygraph import ApplicationsAPI, Entity, Query, Admin
@@ -18,6 +18,11 @@ class Application:
         self.key: str = None
         self.flags: dict = flags
         self.configuration: dict = configuration
+
+    def __check_key(self):
+        if not self.key:
+            raise Exception(
+                "This application has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_label() to retrieve an existing application.")
 
     def __str__(self):
         return f"Application(label={self.label}, key={self.key}, flags={self.flags}, configuration={self.configuration})"
@@ -39,6 +44,7 @@ class Application:
         admin._application_label = self.label
 
         return admin
+
     def save(self) -> 'Application':
         res: dict = self.__api.create_application({
             "label": self.label,
@@ -47,6 +53,30 @@ class Application:
         }).json()
         self.key = res.get("key")
         return self
+
+    def delete(self):
+        self.__check_key()
+        return self.__api.delete_application(self.key)
+
+    def delete_by_label(self, label: str):
+        app = self.get_by_label(label)
+        if app is not None:
+            return self.__api.delete_application(app.key)
+
+    def delete_by_key(self, key: str):
+        return self.__api.delete_application(key)
+
+    def get_all(self) -> List['Application']:
+        res: list = self.__api.list_applications().json()
+        cache = []
+        for x in res:
+            app = Application(label=x.get('label'),
+                              flags=x.get('flags'),
+                              configuration=x.get('configuration'),
+                              )
+            app.key = x.get('key')
+            cache.append(app)
+        return cache
 
     def get_by_key(self, key: str) -> 'Application':
         res: dict = self.__api.get_application(key).json()
@@ -70,3 +100,33 @@ class Application:
                                   )
                 app.key = x.get('key')
                 return app
+
+    def create_subscription(self, label: str) -> str:
+        """
+        :param label: Subscription label
+        :return: Subscription key
+        """
+        self.__check_key()
+        return self.__api.generate_key(self.key, {"label": label}).json()['key']
+
+    def get_subscriptions(self) -> List[dict]:
+        self.__check_key()
+        return self.__api.list_subscriptions(self.key).json()
+
+    def delete_subscription(self, label: str):
+        self.__check_key()
+        return self.__api.revoke_token(self.key, label)
+
+    def set_configuration(self, key: str, value: str | dict):
+        """
+        Sets or updates a configuration parameter
+
+        :param key: Configuration key
+        :param value: Configuration value
+        """
+        self.__check_key()
+        return self.__api.create_configuration(self.key, key, value)
+
+    def delete_configuration(self, key: str):
+        self.__check_key()
+        return self.__api.delete_configuration(self.key, key)

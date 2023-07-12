@@ -1,3 +1,4 @@
+import json
 from typing import List
 
 from entitygraph.api_response import ApiResponse
@@ -49,7 +50,7 @@ class ApplicationsAPI(BaseApiClient):
         :return: Application
         """
         endpoint = f"api/applications/{application_key}/configuration/{configuration_key}"
-        return self._make_request('POST', endpoint, data=configuration_data)
+        return self._make_request('POST', endpoint, data=configuration_data if isinstance(configuration_data, str) else json.dumps(configuration_data))
 
     def delete_configuration(self, application_key: str, configuration_key: str) -> ApiResponse | Exception:
         """

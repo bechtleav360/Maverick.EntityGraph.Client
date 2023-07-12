@@ -76,6 +76,11 @@ class Entity:
         else:
             raise ValueError(f"Unsupported format: {format}")
 
+    def __check_id(self):
+        if not self._id:
+            raise Exception(
+                "This entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
+
     def __str__(self):
         return self.turtle()
 
@@ -91,6 +96,35 @@ class Entity:
     def n3(self) -> str:
         return self.__graph.serialize(format='n3', encoding='utf-8').decode('utf-8')
 
+    def __url_to_prefixed(self, url: str):
+        # Parse the URL to extract the base URL and property
+        parsed_url = urlparse(url)
+
+        if not all([parsed_url.scheme, parsed_url.netloc, parsed_url.path]):
+            raise ValueError(
+                f'Property should be a qualified URL, so instead of prefixed key "sdo.text" it should be "https://schema.org/text"')
+
+        base_url = parsed_url.netloc + parsed_url.path.rsplit('/', 1)[0] + "/"
+        property_name = parsed_url.path.rsplit('/', 1)[-1]
+
+        # Create a graph
+        g = Graph()
+
+        # Check if the base URL is in the namespace map
+        if base_url in namespace_map:
+            # Define the namespace and bind it to its prefix
+            ns = Namespace(base_url)
+            g.bind(namespace_map[base_url], ns)
+
+            # Create a URIRef from the base URL and property and normalize it to use the namespace prefix
+            url_as_uri = URIRef(base_url + property_name)
+            prefixed_url = g.namespace_manager.normalizeUri(url_as_uri)
+
+            return prefixed_url.replace(':', '.')
+
+        else:
+            raise ValueError(f'Namespace {base_url} not found in namespace map')
+
     def save(self) -> 'Entity':
         response: ApiResponse = self.__api.create(self.turtle(), self._application_label, "text/turtle", "text/turtle")
         tmp = Graph.parse(data=response.text, format='turtle')
@@ -103,6 +137,18 @@ class Entity:
         response2: ApiResponse = self.__api.read(self._id, application_label=self._application_label,
                                                  response_mimetype='text/turtle')
         self.__graph = Graph.parse(data=response2.text, format='turtle')
+
+        return self
+
+    def update(self) -> 'Entity':
+        """
+        Retrieves the entity from the API and updates the local Entity object
+        """
+        self.__check_id()
+
+        response: ApiResponse = self.__api.read(self._id, application_label=self._application_label,
+                                                 response_mimetype='text/turtle')
+        self.__graph = Graph.parse(data=response.text, format='turtle')
 
         return self
 
@@ -128,9 +174,7 @@ class Entity:
         :param value: Value (no longer than 255 chars)
         :param language: Language (defaults to "en")
         """
-        if not self._id:
-            raise Exception(
-                "This entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
+        self.__check_id()
 
         if len(value) > 255:
             raise ValueError('Value should not be longer than 255 chars')
@@ -153,9 +197,7 @@ class Entity:
         :param content: Content (can be file, path, binary, string)
         :param filename: Filename (defaults to "file_{random}.bin")
         """
-        if not self._id:
-            raise Exception(
-                "This entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
+        self.__check_id()
 
         # Convert property to prefixed version
         prefixed = self.__url_to_prefixed(property)
@@ -188,9 +230,7 @@ class Entity:
         :param property: Property (qualified URL)
         :param language: Language (defaults to "en")
         """
-        if not self._id:
-            raise Exception(
-                "This entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
+        self.__check_id()
 
         # Convert property to prefixed version
         prefixed = self.__url_to_prefixed(property)
@@ -200,32 +240,44 @@ class Entity:
                                        lang=language,
                                        application_label=self._application_label)
 
+    def create_edge(self, property: str, target: 'Entity') -> Exception | None:
+        """
+        Create edge to existing entity (within the same dataset)
 
-    def __url_to_prefixed(self, url: str):
-        # Parse the URL to extract the base URL and property
-        parsed_url = urlparse(url)
+        :param property: Property (qualified URL)
+        :param target: Target entity (must be saved first)
+        """
+        self.__check_id()
 
-        if not all([parsed_url.scheme, parsed_url.netloc, parsed_url.path]):
-            raise ValueError(
-                f'Property should be a qualified URL, so instead of prefixed key "sdo.text" it should be "https://schema.org/text"')
+        if not target._id:
+            raise Exception(
+                "Target entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
 
-        base_url = parsed_url.netloc + parsed_url.path.rsplit('/', 1)[0] + "/"
-        property_name = parsed_url.path.rsplit('/', 1)[-1]
+        # Convert property to prefixed version
+        prefixed = self.__url_to_prefixed(property)
 
-        # Create a graph
-        g = Graph()
+        return self.__api.create_link(source_id=self._id,
+                                      prefixed_key=prefixed,
+                                      target_id=target._id,
+                                      application_label=self._application_label)
 
-        # Check if the base URL is in the namespace map
-        if base_url in namespace_map:
-            # Define the namespace and bind it to its prefix
-            ns = Namespace(base_url)
-            g.bind(namespace_map[base_url], ns)
+    def delete_edge(self, property: str, target: 'Entity') -> Exception | None:
+        """
+        Delete edge to existing entity (within the same dataset)
 
-            # Create a URIRef from the base URL and property and normalize it to use the namespace prefix
-            url_as_uri = URIRef(base_url + property_name)
-            prefixed_url = g.namespace_manager.normalizeUri(url_as_uri)
+        :param property: Property (qualified URL)
+        :param target: Target entity (must be saved first)
+        """
+        self.__check_id()
 
-            return prefixed_url.replace(':', '.')
+        if not target._id:
+            raise Exception(
+                "Target entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
 
-        else:
-            raise ValueError(f'Namespace {base_url} not found in namespace map')
+        # Convert property to prefixed version
+        prefixed = self.__url_to_prefixed(property)
+
+        return self.__api.delete_link(source_id=self._id,
+                                      prefixed_key=prefixed,
+                                      target_id=target._id,
+                                      application_label=self._application_label)
