@@ -181,13 +181,33 @@ class Entity:
                                     request_mimetype='application/octet-stream',
                                     response_mimetype='text/turtle')
 
+    def remove_value(self, property: str, language: str = 'en') -> Exception | None:
+        """
+        Removes a property value.
+
+        :param property: Property (qualified URL)
+        :param language: Language (defaults to "en")
+        """
+        if not self._id:
+            raise Exception(
+                "This entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
+
+        # Convert property to prefixed version
+        prefixed = self.__url_to_prefixed(property)
+
+        return self.__api.remove_value(entity_id=self._id,
+                                       prefixed_key=prefixed,
+                                       lang=language,
+                                       application_label=self._application_label)
+
+
     def __url_to_prefixed(self, url: str):
         # Parse the URL to extract the base URL and property
         parsed_url = urlparse(url)
 
         if not all([parsed_url.scheme, parsed_url.netloc, parsed_url.path]):
             raise ValueError(
-                f'Property should be a qualified URL, so instead of prefixed key "sdo.text" it should be "https://schema.org/text')
+                f'Property should be a qualified URL, so instead of prefixed key "sdo.text" it should be "https://schema.org/text"')
 
         base_url = parsed_url.netloc + parsed_url.path.rsplit('/', 1)[0] + "/"
         property_name = parsed_url.path.rsplit('/', 1)[-1]
