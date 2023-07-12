@@ -6,11 +6,12 @@ from random import randint
 from typing import List, BinaryIO, TextIO
 from urllib.parse import urlparse
 
-from rdflib import Graph, Literal, URIRef, XSD
+from rdflib import Graph, Literal, URIRef, XSD, SDO, RDF, Namespace
 
 import entitygraph
 from entitygraph import EntitiesAPI
 from entitygraph.api_response import ApiResponse
+from entitygraph.namespace_map import namespace_map
 
 
 class EntityIterable:
@@ -99,11 +100,11 @@ class Entity:
                 self._id = parts[-1]
                 break
 
-        response2: ApiResponse = self.__api.read(self._id, application_label=self._application_label, response_mimetype='text/turtle')
+        response2: ApiResponse = self.__api.read(self._id, application_label=self._application_label,
+                                                 response_mimetype='text/turtle')
         self.__graph = Graph.parse(data=response2.text, format='turtle')
 
         return self
-
 
     def get_by_id(self, entity_id: str) -> 'Entity':
         response: ApiResponse = self.__api.read(entity_id, application_label=self._application_label,
@@ -116,16 +117,15 @@ class Entity:
     def get_all(self, property: str = None) -> List['Entity']:
         return EntityIterable(self.__api, self._application_label, property)
 
-    def delete_by_id(self, entity_id: str):
+    def delete_by_id(self, entity_id: str) -> None:
         response = self.__api.delete(entity_id, self._application_label)
 
-    def set_value(self, property: str, value: str, language: str = 'en'):
+    def set_value(self, property: str, value: str, language: str = 'en') -> Exception | None:
         """
         Sets a specific value.
 
         :param property: Property (qualified URL)
         :param value: Value (no longer than 255 chars)
-        :param datatype: Datatype (defaults to "xsd:string")
         :param language: Language (defaults to "en")
         """
         if not self._id:
@@ -135,50 +135,33 @@ class Entity:
         if len(value) > 255:
             raise ValueError('Value should not be longer than 255 chars')
 
-        # if datatype == 'xsd:string':
-        #     datatype = XSD.string
+        # Convert property to prefixed version
+        prefixed = self.__url_to_prefixed(property)
 
-        # value = Literal(value, lang=language, datatype=XSD.string)
+        return self.__api.set_value(entity_id=self._id,
+                                    prefixed_key=prefixed,
+                                    value=value,
+                                    lang=language,
+                                    application_label=self._application_label)
 
-        property = URIRef(property)
-
-        return self.__api.set_value(self._id, property, value, language, application_label=self._application_label)
-
-    def set_content(self, property: str, content: BinaryIO | TextIO | Path | bytes | str, filename: str = None,
-                    language: str = 'en') -> ApiResponse | Exception:
+    def set_content(self, property: str, content: Path | BinaryIO | TextIO | bytes | str,
+                    filename: str = None) -> Exception | None:
         """
         Sets content.
 
         :param property: Property (qualified URL)
         :param content: Content (can be file, path, binary, string)
-        :param filename: Filename (optional, can be random string)
-        :param language: Language (optional, defaults to "en" for text)
+        :param filename: Filename (defaults to "file_{random}.bin")
         """
-        # If content is a file path, open the file and read the content
         if not self._id:
             raise Exception(
                 "This entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
 
-        if isinstance(content, str) and os.path.isfile(content):
-            with open(content, 'rb') as file:
-                content = file.read()
-
-        if not filename:
-            filename = f'file_{randint(10000, 99999999)}'
-
-        # Get the prefix of the property url
-        property_url = urlparse(property)
-        prefix = f'{property_url.scheme}://{property_url.netloc}/'
-
-        # Create the prefixed key
-        prefixed_key = f'{prefix}:{property_url.path}'
+        # Convert property to prefixed version
+        prefixed = self.__url_to_prefixed(property)
 
         if isinstance(content, str):
-            if Path(content).is_file():
-                with open(content, 'rb') as f:
-                    content_data = f.read()
-            else:
-                content_data = content.encode()
+            content_data = content.encode()
         elif isinstance(content, Path):
             with content.open('rb') as f:
                 content_data = f.read()
@@ -187,7 +170,42 @@ class Entity:
         else:
             content_data = content
 
-        return self.__api.set_value(self._id, prefixed_key, content_data, language, filename,
+        if not filename:
+            filename = f'file_{randint(1, 999999999)}.bin'
+
+        return self.__api.set_value(entity_id=self._id,
+                                    prefixed_key=prefixed,
+                                    value=content_data,
+                                    filename=filename,
                                     application_label=self._application_label,
                                     request_mimetype='application/octet-stream',
                                     response_mimetype='text/turtle')
+
+    def __url_to_prefixed(self, url: str):
+        # Parse the URL to extract the base URL and property
+        parsed_url = urlparse(url)
+
+        if not all([parsed_url.scheme, parsed_url.netloc, parsed_url.path]):
+            raise ValueError(
+                f'Property should be a qualified URL, so instead of prefixed key "sdo.text" it should be "https://schema.org/text')
+
+        base_url = parsed_url.netloc + parsed_url.path.rsplit('/', 1)[0] + "/"
+        property_name = parsed_url.path.rsplit('/', 1)[-1]
+
+        # Create a graph
+        g = Graph()
+
+        # Check if the base URL is in the namespace map
+        if base_url in namespace_map:
+            # Define the namespace and bind it to its prefix
+            ns = Namespace(base_url)
+            g.bind(namespace_map[base_url], ns)
+
+            # Create a URIRef from the base URL and property and normalize it to use the namespace prefix
+            url_as_uri = URIRef(base_url + property_name)
+            prefixed_url = g.namespace_manager.normalizeUri(url_as_uri)
+
+            return prefixed_url.replace(':', '.')
+
+        else:
+            raise ValueError(f'Namespace {base_url} not found in namespace map')

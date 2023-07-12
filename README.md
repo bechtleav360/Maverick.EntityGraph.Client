@@ -17,17 +17,31 @@ import entitygraph
 ```
 
 ## Getting Started
-
-Please follow the [installation procedure](#installation--usage) and then run the following:
-
+### Deprecated:
 ```python
 import entitygraph
 
 # Defining the host is optional and defaults to https://entitygraph.azurewebsites.net
 client = entitygraph.Client(api_key="123")
-
 api_response = client.applications_api.list_applications()
-
 print(api_response)
 
+```
+
+### New:
+```python
+import entitygraph
+from entitygraph import Admin, Entity, Query, Application, Transaction
+
+# Defining the host is optional and defaults to https://entitygraph.azurewebsites.net
+entitygraph.connect(api_key="123")
+
+# For application-specific operations, the Application class is essential. 
+# In the following code, an application named "MyApp" is being retrieved. 
+# Then, an entity with id "f3f34f" is obtained and converted into the n3 format.
+n3: str = Application().get_by_label("MyApp").Entity().get_by_id("f3f34f").n3()
+
+# For operations within the default application, the Admin, Entity, and Query classes can be directly invoked.
+# In the example below, an entity with id "g93h4g8" is retrieved and its "foaf.name" value is updated to "New Name".
+Entity().get_by_id("g93h4g8").set_value("foaf.name", "New Name")
 ```
