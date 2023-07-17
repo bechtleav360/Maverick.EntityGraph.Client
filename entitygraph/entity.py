@@ -104,34 +104,18 @@ class Entity:
     def uri(self) -> URIRef:
         return URIRef(f"{entitygraph.client.base_url}/api/s/{self._application_label}/entities/{self._id}")
 
-    def __url_to_prefixed(self, url: str):
-        # Parse the URL to extract the base URL and property
-        parsed_url = urlparse(url)
-
-        if not all([parsed_url.scheme, parsed_url.netloc, parsed_url.path]):
+    def __uriref_to_prefixed(self, url: URIRef) -> str:
+        if not isinstance(url, URIRef):
             raise ValueError(
-                f'Property should be a qualified URL, so instead of prefixed key "sdo.text" it should be "https://schema.org/text"')
+                f'Invalid input "{url}". Expected a URIRef instance, e.g., URIRef("https://schema.org/name") or "SDO.name"')
 
-        base_url = parsed_url.netloc + parsed_url.path.rsplit('/', 1)[0] + "/"
-        property_name = parsed_url.path.rsplit('/', 1)[-1]
+        url_obj = urlparse(str(url))
+        stripped_url = url_obj.netloc + url_obj.path
 
-        # Create a graph
-        g = Graph()
-
-        # Check if the base URL is in the namespace map
-        if base_url in namespace_map:
-            # Define the namespace and bind it to its prefix
-            ns = Namespace(base_url)
-            g.bind(namespace_map[base_url], ns)
-
-            # Create a URIRef from the base URL and property and normalize it to use the namespace prefix
-            url_as_uri = URIRef(base_url + property_name)
-            prefixed_url = g.namespace_manager.normalizeUri(url_as_uri)
-
-            return prefixed_url.replace(':', '.')
-
-        else:
-            raise ValueError(f'Namespace {base_url} not found in namespace map')
+        for key in namespace_map:
+            if key in stripped_url:
+                return stripped_url.replace(key, f"{namespace_map[key]}.")
+        return stripped_url
 
     def save(self) -> 'Entity':
         response: ApiResponse = self.__api.create(self.turtle(), self._application_label, "text/turtle", "text/turtle")
@@ -168,13 +152,13 @@ class Entity:
         tmp._application_label = self._application_label
         return tmp
 
-    def get_all(self, property: str = None) -> List['Entity']:
-        return EntityIterable(self.__api, self._application_label, property)
+    def get_all(self, property: URIRef = None) -> List['Entity']:
+        return EntityIterable(self.__api, self._application_label, self.__uriref_to_prefixed(property) if property else None)
 
     def delete_by_id(self, entity_id: str) -> None:
         response = self.__api.delete(entity_id, self._application_label)
 
-    def set_value(self, property: str, value: str, language: str = 'en') -> Exception | None:
+    def set_value(self, property: URIRef, value: str, language: str = 'en') -> Exception | None:
         """
         Sets a specific value.
 
@@ -188,7 +172,7 @@ class Entity:
             raise ValueError('Value should not be longer than 255 chars')
 
         # Convert property to prefixed version
-        prefixed = self.__url_to_prefixed(property)
+        prefixed = self.__uriref_to_prefixed(property)
 
         return self.__api.set_value(entity_id=self._id,
                                     prefixed_key=prefixed,
@@ -196,7 +180,7 @@ class Entity:
                                     lang=language,
                                     application_label=self._application_label)
 
-    def set_content(self, property: str, content: Path | BinaryIO | TextIO | bytes | str,
+    def set_content(self, property: URIRef, content: Path | BinaryIO | TextIO | bytes | str,
                     filename: str = None) -> Exception | None:
         """
         Sets content.
@@ -208,7 +192,7 @@ class Entity:
         self.__check_id()
 
         # Convert property to prefixed version
-        prefixed = self.__url_to_prefixed(property)
+        prefixed = self.__uriref_to_prefixed(property)
 
         if isinstance(content, str):
             content_data = content.encode()
@@ -231,7 +215,7 @@ class Entity:
                                     request_mimetype='application/octet-stream',
                                     response_mimetype='text/turtle')
 
-    def remove_value(self, property: str, language: str = 'en') -> Exception | None:
+    def remove_value(self, property: URIRef, language: str = 'en') -> Exception | None:
         """
         Removes a property value.
 
@@ -241,14 +225,14 @@ class Entity:
         self.__check_id()
 
         # Convert property to prefixed version
-        prefixed = self.__url_to_prefixed(property)
+        prefixed = self.__uriref_to_prefixed(property)
 
         return self.__api.remove_value(entity_id=self._id,
                                        prefixed_key=prefixed,
                                        lang=language,
                                        application_label=self._application_label)
 
-    def create_edge(self, property: str, target: 'Entity') -> Exception | None:
+    def create_edge(self, property: URIRef, target: 'Entity') -> Exception | None:
         """
         Create edge to existing entity (within the same dataset)
 
@@ -262,14 +246,14 @@ class Entity:
                 "Target entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
 
         # Convert property to prefixed version
-        prefixed = self.__url_to_prefixed(property)
+        prefixed = self.__uriref_to_prefixed(property)
 
         return self.__api.create_link(source_id=self._id,
                                       prefixed_key=prefixed,
                                       target_id=target._id,
                                       application_label=self._application_label)
 
-    def delete_edge(self, property: str, target: 'Entity') -> Exception | None:
+    def delete_edge(self, property: URIRef, target: 'Entity') -> Exception | None:
         """
         Delete edge to existing entity (within the same dataset)
 
@@ -283,7 +267,7 @@ class Entity:
                 "Target entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
 
         # Convert property to prefixed version
-        prefixed = self.__url_to_prefixed(property)
+        prefixed = self.__uriref_to_prefixed(property)
 
         return self.__api.delete_link(source_id=self._id,
                                       prefixed_key=prefixed,
