@@ -20,7 +20,7 @@ class ApplicationsAPI(BaseApiClient):
         """
         endpoint = "api/applications"
         headers = {'Content-Type': 'application/json'}
-        return self._make_request('POST', endpoint, data=application_data)
+        return self._make_request('POST', endpoint, headers=headers, data=json.dumps(application_data))
 
     def list_subscriptions(self, application_key: str) -> ApiResponse | Exception:
         """
@@ -40,7 +40,7 @@ class ApplicationsAPI(BaseApiClient):
         """
         endpoint = f"api/applications/{application_key}/subscriptions"
         headers = {'Content-Type': 'application/json'}
-        return self._make_request('POST', endpoint, data=key_request)
+        return self._make_request('POST', endpoint, headers=headers, data=key_request)
 
     def create_configuration(self, application_key: str, configuration_key: str, configuration_data: str | dict) -> ApiResponse | Exception:
         """
@@ -68,7 +68,7 @@ class ApplicationsAPI(BaseApiClient):
         """
         endpoint = "api/applications/query"
         headers = {'Content-Type': 'text/plain', 'Accept': response_mimetype}
-        return self._make_request('POST', endpoint, data=query)
+        return self._make_request('POST', endpoint, headers, data=query)
 
     def get_application(self, application_key: str) -> ApiResponse | Exception:
         """

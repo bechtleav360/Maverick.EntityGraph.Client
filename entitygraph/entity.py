@@ -55,7 +55,7 @@ class EntityIterable:
 
 
 class Entity:
-    def __init__(self, data: str | dict = None, format: str = 'turtle'):
+    def __init__(self, data: Graph | str | dict = None, format: str = 'turtle'):
         if entitygraph.client is not None:
             self.__api: EntitiesAPI = entitygraph.client.entities_api
         else:
@@ -65,16 +65,19 @@ class Entity:
         self._application_label: str = "default"
         self._id: str = None
 
-        if format == 'turtle':
-            self.__graph: Graph = Graph().parse(data=data, format='turtle',
-                                                encoding='utf-8') if data is not None else None
-        elif format == 'json-ld':
-            self.__graph: Graph = Graph().parse(data=data, format='json-ld',
-                                                encoding='utf-8') if data is not None else None
-        elif format == 'n3':
-            self.__graph: Graph = Graph().parse(data=data, format='n3', encoding='utf-8') if data is not None else None
+        if isinstance(data, Graph):
+            self.__graph: Graph = data
         else:
-            raise ValueError(f"Unsupported format: {format}")
+            if format == 'turtle':
+                self.__graph: Graph = Graph().parse(data=data, format='turtle',
+                                                    encoding='utf-8') if data is not None else None
+            elif format == 'json-ld':
+                self.__graph: Graph = Graph().parse(data=data, format='json-ld',
+                                                    encoding='utf-8') if data is not None else None
+            elif format == 'n3':
+                self.__graph: Graph = Graph().parse(data=data, format='n3', encoding='utf-8') if data is not None else None
+            else:
+                raise ValueError(f"Unsupported format: {format}")
 
     def __check_id(self):
         if not self._id:
@@ -127,7 +130,7 @@ class Entity:
 
     def save(self) -> 'Entity':
         response: ApiResponse = self.__api.create(self.turtle(), self._application_label, "text/turtle", "text/turtle")
-        tmp = Graph.parse(data=response.text, format='turtle')
+        tmp = Graph().parse(data=response.text, format='turtle')
         for s, p, o in tmp:
             if 'entities' in str(s):
                 parts = str(s).split('/')
@@ -136,7 +139,7 @@ class Entity:
 
         response2: ApiResponse = self.__api.read(self._id, application_label=self._application_label,
                                                  response_mimetype='text/turtle')
-        self.__graph = Graph.parse(data=response2.text, format='turtle')
+        self.__graph = Graph().parse(data=response2.text, format='turtle')
 
         return self
 
@@ -148,7 +151,7 @@ class Entity:
 
         response: ApiResponse = self.__api.read(self._id, application_label=self._application_label,
                                                  response_mimetype='text/turtle')
-        self.__graph = Graph.parse(data=response.text, format='turtle')
+        self.__graph = Graph().parse(data=response.text, format='turtle')
 
         return self
 

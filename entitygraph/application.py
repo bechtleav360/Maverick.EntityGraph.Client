@@ -1,6 +1,8 @@
 import json
 from typing import Type, List
 
+from rdflib import Graph
+
 import entitygraph
 from entitygraph import ApplicationsAPI, Entity, Query, Admin
 
@@ -27,7 +29,7 @@ class Application:
     def __str__(self):
         return f"Application(label={self.label}, key={self.key}, flags={self.flags}, configuration={self.configuration})"
 
-    def Entity(self, data: str | dict = None, format: str = "turtle") -> 'Entity':
+    def Entity(self, data: Graph | str | dict = None, format: str = "turtle") -> 'Entity':
         entity = Entity(data=data, format=format)
         entity._application_label = self.label
 
@@ -48,8 +50,8 @@ class Application:
     def save(self) -> 'Application':
         res: dict = self.__api.create_application({
             "label": self.label,
-            "flags": json.dumps(self.flags),
-            "configuration": json.dumps(self.configuration)
+            "flags": self.flags,
+            "configuration": self.configuration
         }).json()
         self.key = res.get("key")
         return self
