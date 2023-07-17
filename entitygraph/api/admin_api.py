@@ -32,7 +32,6 @@ class AdminAPI(BaseApiClient):
         data = json.dumps(sparql_endpoint)
         return self._make_request('POST', endpoint, params=params, headers=headers, data=data)
 
-
     def import_content(self, rdf_data: str, repository: str = 'entities', application_label='default',
                        request_mimetype: str = 'text/turtle') -> ApiResponse | Exception:
         """
@@ -60,4 +59,3 @@ class AdminAPI(BaseApiClient):
         params = {'repository': repository}
         headers = {'X-Application': application_label}
         return self._make_request('GET', endpoint, params=params, headers=headers)
-

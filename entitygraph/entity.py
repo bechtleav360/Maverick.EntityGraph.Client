@@ -75,7 +75,8 @@ class Entity:
                 self.__graph: Graph = Graph().parse(data=data, format='json-ld',
                                                     encoding='utf-8') if data is not None else None
             elif format == 'n3':
-                self.__graph: Graph = Graph().parse(data=data, format='n3', encoding='utf-8') if data is not None else None
+                self.__graph: Graph = Graph().parse(data=data, format='n3',
+                                                    encoding='utf-8') if data is not None else None
             else:
                 raise ValueError(f"Unsupported format: {format}")
 
@@ -98,6 +99,10 @@ class Entity:
 
     def n3(self) -> str:
         return self.__graph.serialize(format='n3', encoding='utf-8').decode('utf-8')
+
+    @property
+    def uri(self) -> URIRef:
+        return URIRef(f"{entitygraph.client.base_url}/api/s/{self._application_label}/entities/{self._id}")
 
     def __url_to_prefixed(self, url: str):
         # Parse the URL to extract the base URL and property
@@ -150,7 +155,7 @@ class Entity:
         self.__check_id()
 
         response: ApiResponse = self.__api.read(self._id, application_label=self._application_label,
-                                                 response_mimetype='text/turtle')
+                                                response_mimetype='text/turtle')
         self.__graph = Graph().parse(data=response.text, format='turtle')
 
         return self

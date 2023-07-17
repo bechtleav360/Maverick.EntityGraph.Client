@@ -1,10 +1,10 @@
 import json
 from typing import Type, List
 
-from rdflib import Graph
+from rdflib import Graph, RDF, URIRef
 
 import entitygraph
-from entitygraph import ApplicationsAPI, Entity, Query, Admin
+from entitygraph import ApplicationsAPI, Entity, Query, Admin, EntityBuilder
 
 
 class Application:
@@ -28,6 +28,12 @@ class Application:
 
     def __str__(self):
         return f"Application(label={self.label}, key={self.key}, flags={self.flags}, configuration={self.configuration})"
+
+    def EntityBuilder(self, type: URIRef | List[URIRef]) -> EntityBuilder:
+        entity_builder = EntityBuilder(type)
+        entity_builder._application_label = self.label
+
+        return entity_builder
 
     def Entity(self, data: Graph | str | dict = None, format: str = "turtle") -> 'Entity':
         entity = Entity(data=data, format=format)

@@ -8,6 +8,7 @@ from .api.query_api import QueryAPI
 from .client import Client
 from .admin import Admin
 from .entity import Entity
+from .entity_builder import EntityBuilder
 from .query import Query
 from .transaction import Transaction
 from .application import Application
