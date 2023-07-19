@@ -11,7 +11,7 @@ from entitygraph import Entity, Query, Admin, EntityBuilder
 class Application:
     def __init__(self, label: str = None, flags: dict = {"isPersistent": True, "isPublic": True},
                  configuration: dict = {}):
-        if entitygraph.base_client is None:
+        if entitygraph._base_client is None:
             raise Exception(
                 "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Application()")
 
@@ -55,10 +55,10 @@ class Application:
     def save(self) -> 'Application':
         endpoint = "api/applications"
         headers = {'Content-Type': 'application/json'}
-        response: Response = entitygraph.base_client.make_request('POST',
-                                                                  endpoint,
-                                                                  headers=headers,
-                                                                  data=json.dumps({
+        response: Response = entitygraph._base_client.make_request('POST',
+                                                                   endpoint,
+                                                                   headers=headers,
+                                                                   data=json.dumps({
                                                                       "label": self.label,
                                                                       "flags": self.flags,
                                                                       "configuration": self.configuration
@@ -72,21 +72,21 @@ class Application:
         self.__check_key()
 
         endpoint = f"api/applications/{self.key}"
-        return entitygraph.base_client.make_request('DELETE', endpoint)
+        return entitygraph._base_client.make_request('DELETE', endpoint)
 
     def delete_by_label(self, label: str):
         app = self.get_by_label(label)
         if app is not None:
             endpoint = f"api/applications/{self.key}"
-            return entitygraph.base_client.make_request('DELETE', endpoint)
+            return entitygraph._base_client.make_request('DELETE', endpoint)
 
     def delete_by_key(self, key: str):
         endpoint = f"api/applications/{key}"
-        return entitygraph.base_client.make_request('DELETE', endpoint)
+        return entitygraph._base_client.make_request('DELETE', endpoint)
 
     def get_all(self) -> List['Application']:
         endpoint = "api/applications"
-        response: Response = entitygraph.base_client.make_request('GET', endpoint)
+        response: Response = entitygraph._base_client.make_request('GET', endpoint)
 
         cache = []
         for x in response.json():
@@ -101,7 +101,7 @@ class Application:
 
     def get_by_key(self, key: str) -> 'Application':
         endpoint = f"api/applications/{key}"
-        response: Response = entitygraph.base_client.make_request('GET', endpoint)
+        response: Response = entitygraph._base_client.make_request('GET', endpoint)
 
         response: dict = response.json()
 
@@ -115,7 +115,7 @@ class Application:
 
     def get_by_label(self, label: str) -> 'Application':
         endpoint = "api/applications"
-        response: Response = entitygraph.base_client.make_request('GET', endpoint)
+        response: Response = entitygraph._base_client.make_request('GET', endpoint)
 
         for x in response.json():
             if x.get('label') == label:
@@ -134,8 +134,8 @@ class Application:
         self.__check_key()
         endpoint = f"api/applications/{self.key}/subscriptions"
         headers = {'Content-Type': 'application/json'}
-        response: Response = entitygraph.base_client.make_request('POST', endpoint, headers=headers,
-                                                                  data={"label": label})
+        response: Response = entitygraph._base_client.make_request('POST', endpoint, headers=headers,
+                                                                   data={"label": label})
 
         return response.json()['key']
 
@@ -143,7 +143,7 @@ class Application:
         self.__check_key()
 
         endpoint = f"api/applications/{self.key}/subscriptions"
-        response: Response = entitygraph.base_client.make_request('GET', endpoint)
+        response: Response = entitygraph._base_client.make_request('GET', endpoint)
 
         return response.json()
 
@@ -151,7 +151,7 @@ class Application:
         self.__check_key()
 
         endpoint = f"api/applications/{self.key}/subscriptions/{label}"
-        return entitygraph.base_client.make_request('DELETE', endpoint)
+        return entitygraph._base_client.make_request('DELETE', endpoint)
 
     def set_configuration(self, key: str, value: str | dict):
         """
@@ -163,10 +163,10 @@ class Application:
         self.__check_key()
 
         endpoint = f"api/applications/{self.key}/configuration/{key}"
-        return entitygraph.base_client.make_request('POST', endpoint, data=value if isinstance(value, str) else json.dumps(value))
+        return entitygraph._base_client.make_request('POST', endpoint, data=value if isinstance(value, str) else json.dumps(value))
 
     def delete_configuration(self, key: str):
         self.__check_key()
 
         endpoint = f"api/applications/{self.key}/configuration/{key}"
-        return entitygraph.base_client.make_request('DELETE', endpoint)
+        return entitygraph._base_client.make_request('DELETE', endpoint)

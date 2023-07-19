@@ -8,19 +8,10 @@ from .query import Query
 from .transaction import Transaction
 from .application import Application
 
-base_client: BaseApiClient = None
-API_KEY: str = None
-HOST: str = None
-IGNORE_SSL: bool = False
+_base_client: BaseApiClient = None
+
 
 
 def connect(api_key: str, host: str = "https://entitygraph.azurewebsites.net", ignore_ssl: bool = False):
-    global API_KEY
-    API_KEY = api_key
-    global HOST
-    HOST = host
-    global IGNORE_SSL
-    IGNORE_SSL = ignore_ssl
-
-    global base_client
-    base_client = BaseApiClient(api_key=api_key, base_url=host, ignore_ssl=ignore_ssl)
+    global _base_client
+    _base_client = BaseApiClient(api_key=api_key, base_url=host, ignore_ssl=ignore_ssl)

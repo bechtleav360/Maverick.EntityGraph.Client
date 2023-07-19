@@ -1,9 +1,11 @@
+import asyncio
 import json
 from pathlib import Path
 from random import randint
 from typing import List, BinaryIO, TextIO
 from urllib.parse import urlparse
 
+import aiohttp
 from rdflib import Graph, URIRef
 from requests import Response
 
@@ -16,6 +18,31 @@ class EntityIterable:
         self.application_label: str = application_label
         self.property: str = property
         self.cache: List[Entity] = []
+
+    async def fetch(self, session, url, headers):
+        async with session.get(url, headers=headers) as response:
+            return await response.text(), url
+
+    async def handle_requests(self, tmp):
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for x in tmp:
+                parsed_url = urlparse(x['@id'])
+                path_parts = parsed_url.path.strip('/').split('/')
+                entity_id = path_parts[-1] if len(path_parts) > 0 else None
+
+                endpoint = f'{entitygraph._base_client.base_url}/api/entities/{entity_id}'
+                headers = {'X-Application': self.application_label, 'Accept': 'text/turtle'}
+
+                tasks.append(self.fetch(session, endpoint, headers))
+
+            responses = await asyncio.gather(*tasks)
+
+            for response, url in responses:
+                tmp = Entity(data=response, format='turtle')
+                tmp._id = url.split('/')[-1]
+                tmp._Entity__application_label = self.application_label
+                self.cache.append(tmp)
 
     def __getitem__(self, item):
         tmp = None
@@ -40,28 +67,16 @@ class EntityIterable:
         endpoint = 'api/entities'
         params = {'limit': lim, 'offset': off}
         headers = {'X-Application': self.application_label, 'Accept': 'application/ld+json'}
-        tmp = entitygraph.base_client.make_request('GET', endpoint, headers=headers, params=params).json()['@graph']
+        tmp = entitygraph._base_client.make_request('GET', endpoint, headers=headers, params=params).json()['@graph']
 
-        for x in tmp:
-            parsed_url = urlparse(x['@id'])
-            path_parts = parsed_url.path.strip('/').split('/')
-            entity_id = path_parts[-1] if len(path_parts) > 0 else None
-
-            endpoint = f'api/entities/{entity_id}'
-            headers = {'X-Application': self.application_label, 'Accept': 'text/turtle'}
-            response: Response = entitygraph.base_client.make_request('GET', endpoint, headers=headers)
-
-            tmp = Entity(data=response.text, format='turtle')
-            tmp._id = entity_id
-            tmp._Entity__application_label = self.application_label
-            self.cache.append(tmp)
+        asyncio.run(self.handle_requests(tmp))
 
         return self.cache
 
 
 class Entity:
     def __init__(self, data: Graph | str | dict = None, format: str = 'turtle'):
-        if entitygraph.base_client is None:
+        if entitygraph._base_client is None:
             raise Exception(
                 "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Entity()")
 
@@ -126,7 +141,7 @@ class Entity:
 
         endpoint = 'api/entities'
         headers = {'X-Application': self._application_label, 'Content-Type': "text/turtle", 'Accept': "text/turtle"}
-        response: Response = entitygraph.base_client.make_request('POST', endpoint, headers=headers, data=self.turtle())
+        response: Response = entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=self.turtle())
 
         tmp = Graph().parse(data=response.text, format='turtle')
         for s, p, o in tmp:
@@ -145,7 +160,7 @@ class Entity:
 
         endpoint = f'api/entities/{self._id}'
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
-        response: Response = entitygraph.base_client.make_request('GET', endpoint, headers=headers)
+        response: Response = entitygraph._base_client.make_request('GET', endpoint, headers=headers)
 
         self.__graph = Graph().parse(data=response.text, format='turtle')
 
@@ -154,7 +169,7 @@ class Entity:
     def get_by_id(self, entity_id: str) -> 'Entity':
         endpoint = f'api/entities/{entity_id}'
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
-        response: Response = entitygraph.base_client.make_request('GET', endpoint, headers=headers)
+        response: Response = entitygraph._base_client.make_request('GET', endpoint, headers=headers)
 
         tmp = Entity(data=response.text)
         tmp._id = entity_id
@@ -170,12 +185,12 @@ class Entity:
 
         endpoint = f'api/entities/{self._id}'
         headers = {'X-Application': self._application_label, 'Accept': "text/turtle"}
-        return entitygraph.base_client.make_request('DELETE', endpoint, headers=headers)
+        return entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
 
     def delete_by_id(self, entity_id: str) -> None:
         endpoint = f'api/entities/{entity_id}'
         headers = {'X-Application': self._application_label, 'Accept': "text/turtle"}
-        return entitygraph.base_client.make_request('DELETE', endpoint, headers=headers)
+        return entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
 
     def set_value(self, property: URIRef, value: str | URIRef, language: str = 'en') -> Exception | None:
         """
@@ -206,7 +221,7 @@ class Entity:
         if language:
             params['lang'] = language
 
-        return entitygraph.base_client.make_request('POST', endpoint, headers=headers, data=value, params=(params if params else None))
+        return entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=value, params=(params if params else None))
 
     def set_content(self, property: URIRef, content: Path | BinaryIO | TextIO | bytes | str,
                     filename: str = None) -> Exception | None:
@@ -243,7 +258,7 @@ class Entity:
         }
         params = {'filename': filename}
 
-        return entitygraph.base_client.make_request('POST', endpoint, headers=headers, data=content_data, params=params)
+        return entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=content_data, params=params)
 
     def remove_value(self, property: URIRef, language: str = 'en') -> Exception | None:
         """
@@ -261,7 +276,7 @@ class Entity:
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
         params = {'lang': language} if language else None
 
-        return entitygraph.base_client.make_request('DELETE', endpoint, headers=headers, params=params)
+        return entitygraph._base_client.make_request('DELETE', endpoint, headers=headers, params=params)
 
     def create_edge(self, property: URIRef, target: 'Entity') -> Exception | None:
         """
@@ -281,7 +296,7 @@ class Entity:
 
         endpoint = f"api/entities/{self._id}/links/{prefixed}/{target._id}"
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
-        return entitygraph.base_client.make_request('PUT', endpoint, headers=headers)
+        return entitygraph._base_client.make_request('PUT', endpoint, headers=headers)
 
     def delete_edge(self, property: URIRef, target: 'Entity') -> Exception | None:
         """
@@ -301,7 +316,7 @@ class Entity:
 
         endpoint = f"api/entities/{self._id}/links/{prefixed}/{target._id}"
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
-        return entitygraph.base_client.make_request('DELETE', endpoint, headers=headers)
+        return entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
 
     def embed(self, property: URIRef, data: str | dict):
         self.__check_id()
@@ -311,4 +326,4 @@ class Entity:
 
         endpoint = f'api/entities/{self._id}/{prefixed}'
         headers = {'X-Application': self._application_label, 'Content-Type': 'text/turtle', 'Accept': 'text/turtle'}
-        return entitygraph.base_client.make_request('POST', endpoint, headers=headers, data=data)
+        return entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=data)

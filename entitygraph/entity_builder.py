@@ -8,7 +8,7 @@ from entitygraph import Entity
 
 class EntityBuilder:
     def __init__(self, types: URIRef | List[URIRef]):
-        if entitygraph.base_client is None:
+        if entitygraph._base_client is None:
             raise Exception(
                 "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Entity()")
 
