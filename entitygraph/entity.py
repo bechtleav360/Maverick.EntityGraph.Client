@@ -158,7 +158,7 @@ class Entity:
     def delete_by_id(self, entity_id: str) -> None:
         response = self.__api.delete(entity_id, self._application_label)
 
-    def set_value(self, property: URIRef, value: str, language: str = 'en') -> Exception | None:
+    def set_value(self, property: URIRef, value: str | URIRef, language: str = 'en') -> Exception | None:
         """
         Sets a specific value.
 
@@ -173,6 +173,9 @@ class Entity:
 
         # Convert property to prefixed version
         prefixed = self.__uriref_to_prefixed(property)
+
+        if isinstance(value, URIRef):
+            value = '<' + str(value) + '>'
 
         return self.__api.set_value(entity_id=self._id,
                                     prefixed_key=prefixed,
