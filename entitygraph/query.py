@@ -3,6 +3,7 @@ import io
 import pandas
 from pandas import DataFrame
 from rdflib import Graph
+from requests import Response
 
 import entitygraph
 from entitygraph import QueryAPI
@@ -10,9 +11,7 @@ from entitygraph import QueryAPI
 
 class Query:
     def __init__(self):
-        if entitygraph.client is not None:
-            self.__api: QueryAPI = entitygraph.client.query_api
-        else:
+        if entitygraph.base_client is None:
             raise Exception(
                 "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Query()")
 
@@ -23,8 +22,12 @@ class Query:
         :param query: SPARQL query. For example: 'SELECT ?entity  ?type WHERE { ?entity a ?type } LIMIT 100'
         :param repository: The repository type in which the query should search: entities, schema, transactions or application
         """
-        response = self.__api.select(query, repository, self._application_label, "text/csv")
-        return pandas.read_csv(io.StringIO(response.text))
+        endpoint = "api/query/select"
+        params = {'repository': repository}
+        headers = {'X-Application': self._application_label, 'Content-Type': 'text/plain', 'Accept': 'text/csv'}
+        response: Response = entitygraph.base_client.make_request('POST', endpoint, headers=headers, params=params, data=query)
+
+        return pandas.read_csv(io.BytesIO(response.content))
 
     def construct(self, query: str, repository: str = "entities") -> Graph:
         """
@@ -32,5 +35,9 @@ class Query:
         :param repository: The repository type in which the query should search: entities, schema, transactions or application
         :param response_format: text/turtle or application/ld+json
         """
-        response = self.__api.construct(query, repository, self._application_label)
+        endpoint = "api/query/construct"
+        params = {'repository': repository}
+        headers = {'X-Application': self._application_label, 'Content-Type': 'text/plain', 'Accept': 'text/turtle'}
+        response: Response = entitygraph.base_client.make_request('POST', endpoint, headers=headers, params=params, data=query)
+
         return Graph().parse(data=response.text)

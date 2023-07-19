@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "entitygraph"
-version = "0.0.12"
+dynamic = ["version"]
 description = "Python client for Maverick EntityGraph API"
 authors = [{name = "Bechtle A/V Software Solutions 360°", email = "mail@a365maverick.de"}]
 license = { text = "Apache 2.0" }
@@ -14,5 +14,9 @@ requires-python = ">=3.7"
 dependencies = [
     "requests >= 2.31.0",
     "rdflib >= 6.3.0",
-    "pandas >= 2.0.3"
+    "pandas >= 2.0.3",
+    "httpx[http2] >= 0.24.1"
 ]
+
+[tool.setuptools.dynamic]
+version = {attr = "entitygraph.__version__"}

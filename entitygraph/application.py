@@ -1,18 +1,17 @@
 import json
 from typing import Type, List
 
-from rdflib import Graph, RDF, URIRef
+from rdflib import Graph, URIRef
+from requests import Response
 
 import entitygraph
-from entitygraph import ApplicationsAPI, Entity, Query, Admin, EntityBuilder
+from entitygraph import Entity, Query, Admin, EntityBuilder
 
 
 class Application:
     def __init__(self, label: str = None, flags: dict = {"isPersistent": True, "isPublic": True},
                  configuration: dict = {}):
-        if entitygraph.client is not None:
-            self.__api: ApplicationsAPI = entitygraph.client.applications_api
-        else:
+        if entitygraph.base_client is None:
             raise Exception(
                 "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Application()")
 
@@ -54,53 +53,71 @@ class Application:
         return admin
 
     def save(self) -> 'Application':
-        res: dict = self.__api.create_application({
-            "label": self.label,
-            "flags": self.flags,
-            "configuration": self.configuration
-        }).json()
-        self.key = res.get("key")
+        endpoint = "api/applications"
+        headers = {'Content-Type': 'application/json'}
+        response: Response = entitygraph.base_client.make_request('POST',
+                                                                  endpoint,
+                                                                  headers=headers,
+                                                                  data=json.dumps({
+                                                                      "label": self.label,
+                                                                      "flags": self.flags,
+                                                                      "configuration": self.configuration
+                                                                  }))
+
+        self.key = response.json().get("key")
+
         return self
 
     def delete(self):
         self.__check_key()
-        return self.__api.delete_application(self.key)
+
+        endpoint = f"api/applications/{self.key}"
+        return entitygraph.base_client.make_request('DELETE', endpoint)
 
     def delete_by_label(self, label: str):
         app = self.get_by_label(label)
         if app is not None:
-            return self.__api.delete_application(app.key)
+            endpoint = f"api/applications/{self.key}"
+            return entitygraph.base_client.make_request('DELETE', endpoint)
 
     def delete_by_key(self, key: str):
-        return self.__api.delete_application(key)
+        endpoint = f"api/applications/{key}"
+        return entitygraph.base_client.make_request('DELETE', endpoint)
 
     def get_all(self) -> List['Application']:
-        res: list = self.__api.list_applications().json()
+        endpoint = "api/applications"
+        response: Response = entitygraph.base_client.make_request('GET', endpoint)
+
         cache = []
-        for x in res:
+        for x in response.json():
             app = Application(label=x.get('label'),
                               flags=x.get('flags'),
                               configuration=x.get('configuration'),
                               )
             app.key = x.get('key')
             cache.append(app)
+
         return cache
 
     def get_by_key(self, key: str) -> 'Application':
-        res: dict = self.__api.get_application(key).json()
+        endpoint = f"api/applications/{key}"
+        response: Response = entitygraph.base_client.make_request('GET', endpoint)
 
-        if res is not None:
-            app = Application(label=res.get('label'),
-                              flags=res.get('flags'),
-                              configuration=res.get('configuration'),
+        response: dict = response.json()
+
+        if response is not None:
+            app = Application(label=response.get('label'),
+                              flags=response.get('flags'),
+                              configuration=response.get('configuration'),
                               )
-            app.key = res.get('key')
+            app.key = response.get('key')
             return app
 
     def get_by_label(self, label: str) -> 'Application':
-        res = self.__api.list_applications().json()
+        endpoint = "api/applications"
+        response: Response = entitygraph.base_client.make_request('GET', endpoint)
 
-        for x in res:
+        for x in response.json():
             if x.get('label') == label:
                 app = Application(label=x.get('label'),
                                   flags=x.get('flags'),
@@ -115,15 +132,26 @@ class Application:
         :return: Subscription key
         """
         self.__check_key()
-        return self.__api.generate_key(self.key, {"label": label}).json()['key']
+        endpoint = f"api/applications/{self.key}/subscriptions"
+        headers = {'Content-Type': 'application/json'}
+        response: Response = entitygraph.base_client.make_request('POST', endpoint, headers=headers,
+                                                                  data={"label": label})
+
+        return response.json()['key']
 
     def get_subscriptions(self) -> List[dict]:
         self.__check_key()
-        return self.__api.list_subscriptions(self.key).json()
+
+        endpoint = f"api/applications/{self.key}/subscriptions"
+        response: Response = entitygraph.base_client.make_request('GET', endpoint)
+
+        return response.json()
 
     def delete_subscription(self, label: str):
         self.__check_key()
-        return self.__api.revoke_token(self.key, label)
+
+        endpoint = f"api/applications/{self.key}/subscriptions/{label}"
+        return entitygraph.base_client.make_request('DELETE', endpoint)
 
     def set_configuration(self, key: str, value: str | dict):
         """
@@ -133,8 +161,12 @@ class Application:
         :param value: Configuration value
         """
         self.__check_key()
-        return self.__api.create_configuration(self.key, key, value)
+
+        endpoint = f"api/applications/{self.key}/configuration/{key}"
+        return entitygraph.base_client.make_request('POST', endpoint, data=value if isinstance(value, str) else json.dumps(value))
 
     def delete_configuration(self, key: str):
         self.__check_key()
-        return self.__api.delete_configuration(self.key, key)
+
+        endpoint = f"api/applications/{self.key}/configuration/{key}"
+        return entitygraph.base_client.make_request('DELETE', endpoint)

@@ -1,3 +1,5 @@
+import io
+import json
 from pathlib import Path
 
 import entitygraph
@@ -6,9 +8,7 @@ from entitygraph import AdminAPI
 
 class Admin:
     def __init__(self):
-        if entitygraph.client is not None:
-            self.__api: AdminAPI = entitygraph.client.admin_api
-        else:
+        if entitygraph.base_client is None:
             raise Exception(
                 "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Admin()")
 
@@ -22,7 +22,12 @@ class Admin:
         :param file_mimetype: The mimetype of the file to import: text/turtle, application/ld+json, application/rdf+xml, application/n-triples, application/n-quads or application/vnd.hdt
         :param repository: The repository type in which the file should be imported: entities, schema, transactions or application
         """
-        self.__api.import_file(file_path, file_mimetype, repository, self._application_label)
+        endpoint = "api/admin/import/file"
+        params = {'repository': repository, 'mimetype': file_mimetype}
+        headers = {'X-Application': self._application_label}
+        with open(file_path, 'rb') as file_mono:
+            files = {'fileMono': file_mono}
+            return entitygraph.base_client.make_request('POST', endpoint, params=params, headers=headers, files=files)
 
     def import_endpoint(self, sparql_endpoint: dict, repository: str = "entities"):
         """
@@ -30,8 +35,11 @@ class Admin:
 
         :param repository: The repository type in which the file should be imported: entities, schema, transactions or application
         """
-
-        self.__api.import_endpoint(sparql_endpoint, repository, self._application_label)
+        endpoint = 'api/admin/import/endpoint'
+        params = {'repository': repository}
+        headers = {'X-Application': self._application_label}
+        data = json.dumps(sparql_endpoint)
+        return entitygraph.base_client.make_request('POST', endpoint, params=params, headers=headers, data=data)
 
     def import_content(self, rdf_data: str, content_mimetype: str = "text/turtle", repository: str = "entities"):
         """
@@ -41,10 +49,19 @@ class Admin:
         :param content_mimetype: The mimetype of the RDF data to import: text/turtle, application/ld+json, application/rdf+xml, application/n-triples, application/n-quads or application/vnd.hdt
         :param repository: The repository type in which the file should be imported: entities, schema, transactions or application
         """
-        self.__api.import_content(rdf_data, repository, self._application_label, content_mimetype)
+        endpoint = "api/admin/import/content"
+        params = {'repository': repository}
+        headers = {'X-Application': self._application_label, 'Content-Type': content_mimetype}
+        data = io.BytesIO(rdf_data.encode())
+        return entitygraph.base_client.make_request('POST', endpoint, params=params, headers=headers, data=data)
 
     def reset(self, repository: str = "entities"):
         """
         Removes all statements within the repository
+
+        :param repository: The repository: entities, schema, transactions, application
         """
-        self.__api.reset(repository, self._application_label)
+        endpoint = "api/admin/reset"
+        params = {'repository': repository}
+        headers = {'X-Application': self._application_label}
+        return entitygraph.base_client.make_request('GET', endpoint, params=params, headers=headers)

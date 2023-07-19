@@ -7,16 +7,14 @@ from typing import List, BinaryIO, TextIO
 from urllib.parse import urlparse
 
 from rdflib import Graph, Literal, URIRef, XSD, SDO, RDF, Namespace
+from requests import Response
 
 import entitygraph
-from entitygraph import EntitiesAPI
-from entitygraph.api_response import ApiResponse
 from entitygraph.namespace_map import namespace_map
 
 
 class EntityIterable:
-    def __init__(self, api: EntitiesAPI, application_label: str, property: str = None):
-        self.api: EntitiesAPI = api
+    def __init__(self, application_label: str, property: str = None):
         self.application_label: str = application_label
         self.property: str = property
         self.cache: List[Entity] = []
@@ -32,22 +30,31 @@ class EntityIterable:
             if step != 1:
                 raise ValueError('Step values other than 1 are not supported')
 
-            tmp = json.loads(self.api.list(offset=start, limit=stop - start, application_label=self.application_label,
-                                           response_mimetype='application/ld+json').text)['@graph']
+            off = start
+            lim = stop - start
         elif isinstance(item, int):
-            tmp = json.loads(self.api.list(offset=0, limit=item, application_label=self.application_label,
-                                           response_mimetype='application/ld+json').text)['@graph']
+            off = 0
+            lim = item
         else:
-            tmp = json.loads(self.api.list(offset=0, limit=10, application_label=self.application_label,
-                                           response_mimetype='application/ld+json').text)['@graph']
+            off = 0
+            lim = 10
+
+        endpoint = 'api/entities'
+        params = {'limit': lim, 'offset': off}
+        headers = {'X-Application': self.application_label, 'Accept': 'application/ld+json'}
+        tmp = entitygraph.base_client.make_request('GET', endpoint, headers=headers, params=params).json()['@graph']
 
         for x in tmp:
             parsed_url = urlparse(x['@id'])
             path_parts = parsed_url.path.strip('/').split('/')
             entity_id = path_parts[-1] if len(path_parts) > 0 else None
 
-            res = self.api.read(entity_id, self.property, self.application_label, 'text/turtle')
-            tmp = Entity(data=res.text, format='turtle')
+            endpoint = f'api/entities/{entity_id}'
+            headers = {'X-Application': self.application_label, 'Accept': 'text/turtle'}
+            response: Response = entitygraph.base_client.make_request('GET', endpoint, headers=headers)
+
+            tmp = Entity(data=response.text, format='turtle')
+            tmp._id = entity_id
             tmp._Entity__application_label = self.application_label
             self.cache.append(tmp)
 
@@ -56,9 +63,7 @@ class EntityIterable:
 
 class Entity:
     def __init__(self, data: Graph | str | dict = None, format: str = 'turtle'):
-        if entitygraph.client is not None:
-            self.__api: EntitiesAPI = entitygraph.client.entities_api
-        else:
+        if entitygraph.base_client is None:
             raise Exception(
                 "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Entity()")
 
@@ -118,7 +123,13 @@ class Entity:
         return stripped_url
 
     def save(self) -> 'Entity':
-        response: ApiResponse = self.__api.create(self.turtle(), self._application_label, "text/turtle", "text/turtle")
+        if self._id:
+            raise Exception("This entity has already been saved. Please use other methods to modify the entity.")
+
+        endpoint = 'api/entities'
+        headers = {'X-Application': self._application_label, 'Content-Type': "text/turtle", 'Accept': "text/turtle"}
+        response: Response = entitygraph.base_client.make_request('POST', endpoint, headers=headers, data=self.turtle())
+
         tmp = Graph().parse(data=response.text, format='turtle')
         for s, p, o in tmp:
             if 'entities' in str(s):
@@ -126,11 +137,7 @@ class Entity:
                 self._id = parts[-1]
                 break
 
-        response2: ApiResponse = self.__api.read(self._id, application_label=self._application_label,
-                                                 response_mimetype='text/turtle')
-        self.__graph = Graph().parse(data=response2.text, format='turtle')
-
-        return self
+        return self.update()
 
     def update(self) -> 'Entity':
         """
@@ -138,25 +145,39 @@ class Entity:
         """
         self.__check_id()
 
-        response: ApiResponse = self.__api.read(self._id, application_label=self._application_label,
-                                                response_mimetype='text/turtle')
+        endpoint = f'api/entities/{self._id}'
+        headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
+        response: Response = entitygraph.base_client.make_request('GET', endpoint, headers=headers)
+
         self.__graph = Graph().parse(data=response.text, format='turtle')
 
         return self
 
     def get_by_id(self, entity_id: str) -> 'Entity':
-        response: ApiResponse = self.__api.read(entity_id, application_label=self._application_label,
-                                                response_mimetype='text/turtle')
+        endpoint = f'api/entities/{entity_id}'
+        headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
+        response: Response = entitygraph.base_client.make_request('GET', endpoint, headers=headers)
+
         tmp = Entity(data=response.text)
         tmp._id = entity_id
         tmp._application_label = self._application_label
         return tmp
 
     def get_all(self, property: URIRef = None) -> List['Entity']:
-        return EntityIterable(self.__api, self._application_label, self.__uriref_to_prefixed(property) if property else None)
+        return EntityIterable(self._application_label,
+                              self.__uriref_to_prefixed(property) if property else None)
+
+    def delete(self) -> None:
+        self.__check_id()
+
+        endpoint = f'api/entities/{self._id}'
+        headers = {'X-Application': self._application_label, 'Accept': "text/turtle"}
+        return entitygraph.base_client.make_request('DELETE', endpoint, headers=headers)
 
     def delete_by_id(self, entity_id: str) -> None:
-        response = self.__api.delete(entity_id, self._application_label)
+        endpoint = f'api/entities/{entity_id}'
+        headers = {'X-Application': self._application_label, 'Accept': "text/turtle"}
+        return entitygraph.base_client.make_request('DELETE', endpoint, headers=headers)
 
     def set_value(self, property: URIRef, value: str | URIRef, language: str = 'en') -> Exception | None:
         """
@@ -177,11 +198,17 @@ class Entity:
         if isinstance(value, URIRef):
             value = '<' + str(value) + '>'
 
-        return self.__api.set_value(entity_id=self._id,
-                                    prefixed_key=prefixed,
-                                    value=value,
-                                    lang=language,
-                                    application_label=self._application_label)
+        endpoint = f"api/entities/{self._id}/values/{prefixed}"
+        headers = {
+            'X-Application': self._application_label,
+            'Content-Type': 'text/plain',
+            'Accept': 'text/turtle'
+        }
+        params = {}
+        if language:
+            params['lang'] = language
+
+        return entitygraph.base_client.make_request('POST', endpoint, headers=headers, data=value, params=(params if params else None))
 
     def set_content(self, property: URIRef, content: Path | BinaryIO | TextIO | bytes | str,
                     filename: str = None) -> Exception | None:
@@ -210,13 +237,15 @@ class Entity:
         if not filename:
             filename = f'file_{randint(1, 999999999)}.bin'
 
-        return self.__api.set_value(entity_id=self._id,
-                                    prefixed_key=prefixed,
-                                    value=content_data,
-                                    filename=filename,
-                                    application_label=self._application_label,
-                                    request_mimetype='application/octet-stream',
-                                    response_mimetype='text/turtle')
+        endpoint = f"api/entities/{self._id}/values/{prefixed}"
+        headers = {
+            'X-Application': self._application_label,
+            'Content-Type': 'application/octet-stream',
+            'Accept': 'text/turtle'
+        }
+        params = {'filename': filename}
+
+        return entitygraph.base_client.make_request('POST', endpoint, headers=headers, data=content_data, params=params)
 
     def remove_value(self, property: URIRef, language: str = 'en') -> Exception | None:
         """
@@ -230,10 +259,11 @@ class Entity:
         # Convert property to prefixed version
         prefixed = self.__uriref_to_prefixed(property)
 
-        return self.__api.remove_value(entity_id=self._id,
-                                       prefixed_key=prefixed,
-                                       lang=language,
-                                       application_label=self._application_label)
+        endpoint = f"api/entities/{self._id}/values/{prefixed}"
+        headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
+        params = {'lang': language} if language else None
+
+        return entitygraph.base_client.make_request('DELETE', endpoint, headers=headers, params=params)
 
     def create_edge(self, property: URIRef, target: 'Entity') -> Exception | None:
         """
@@ -251,10 +281,9 @@ class Entity:
         # Convert property to prefixed version
         prefixed = self.__uriref_to_prefixed(property)
 
-        return self.__api.create_link(source_id=self._id,
-                                      prefixed_key=prefixed,
-                                      target_id=target._id,
-                                      application_label=self._application_label)
+        endpoint = f"api/entities/{self._id}/links/{prefixed}/{target._id}"
+        headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
+        return entitygraph.base_client.make_request('PUT', endpoint, headers=headers)
 
     def delete_edge(self, property: URIRef, target: 'Entity') -> Exception | None:
         """
@@ -272,7 +301,16 @@ class Entity:
         # Convert property to prefixed version
         prefixed = self.__uriref_to_prefixed(property)
 
-        return self.__api.delete_link(source_id=self._id,
-                                      prefixed_key=prefixed,
-                                      target_id=target._id,
-                                      application_label=self._application_label)
+        endpoint = f"api/entities/{self._id}/links/{prefixed}/{target._id}"
+        headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
+        return entitygraph.base_client.make_request('DELETE', endpoint, headers=headers)
+
+    def embed(self, property: URIRef, data: str | dict):
+        self.__check_id()
+
+        # Convert property to prefixed version
+        prefixed = self.__uriref_to_prefixed(property)
+
+        endpoint = f'api/entities/{self._id}/{prefixed}'
+        headers = {'X-Application': self._application_label, 'Content-Type': 'text/turtle', 'Accept': 'text/turtle'}
+        return entitygraph.base_client.make_request('POST', endpoint, headers=headers, data=data)
