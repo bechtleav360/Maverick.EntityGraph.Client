@@ -3,7 +3,6 @@ import json
 from pathlib import Path
 
 import entitygraph
-from entitygraph import AdminAPI
 
 
 class Admin:

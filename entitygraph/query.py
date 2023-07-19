@@ -6,7 +6,6 @@ from rdflib import Graph
 from requests import Response
 
 import entitygraph
-from entitygraph import QueryAPI
 
 
 class Query:

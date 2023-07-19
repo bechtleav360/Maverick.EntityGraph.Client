@@ -1,12 +1,10 @@
-import io
 import json
-import os
 from pathlib import Path
 from random import randint
 from typing import List, BinaryIO, TextIO
 from urllib.parse import urlparse
 
-from rdflib import Graph, Literal, URIRef, XSD, SDO, RDF, Namespace
+from rdflib import Graph, URIRef
 from requests import Response
 
 import entitygraph
