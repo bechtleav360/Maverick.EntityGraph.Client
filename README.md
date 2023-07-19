@@ -17,18 +17,6 @@ import entitygraph
 ```
 
 ## Getting Started
-### Deprecated:
-```python
-import entitygraph
-
-# Defining the host is optional and defaults to https://entitygraph.azurewebsites.net
-client = entitygraph.Client(api_key="123")
-api_response = client.applications_api.list_applications()
-print(api_response)
-
-```
-
-### New:
 ```python
 import entitygraph
 from entitygraph import Admin, Entity, Query, Application, Transaction
