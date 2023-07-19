@@ -22,8 +22,11 @@ class EntityBuilder:
         else:
             self.graph.add((self.node, RDF.type, types))
 
-    def addValue(self, property: URIRef, value):
-        self.graph.add((self.node, property, Literal(value)))
+    def addValue(self, property: URIRef, value: str | URIRef):
+        if isinstance(value, URIRef):
+            self.graph.add((self.node, property, value))
+        else:
+            self.graph.add((self.node, property, Literal(value)))
 
         return self
 
