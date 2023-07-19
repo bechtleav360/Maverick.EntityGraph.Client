@@ -19,31 +19,6 @@ class EntityIterable:
         self.property: str = property
         self.cache: List[Entity] = []
 
-    async def fetch(self, session, url, headers):
-        async with session.get(url, headers=headers) as response:
-            return await response.text(), url
-
-    async def handle_requests(self, tmp):
-        async with aiohttp.ClientSession() as session:
-            tasks = []
-            for x in tmp:
-                parsed_url = urlparse(x['@id'])
-                path_parts = parsed_url.path.strip('/').split('/')
-                entity_id = path_parts[-1] if len(path_parts) > 0 else None
-
-                endpoint = f'{entitygraph._base_client.base_url}/api/entities/{entity_id}'
-                headers = {'X-Application': self.application_label, 'Accept': 'text/turtle'}
-
-                tasks.append(self.fetch(session, endpoint, headers))
-
-            responses = await asyncio.gather(*tasks)
-
-            for response, url in responses:
-                tmp = Entity(data=response, format='turtle')
-                tmp._id = url.split('/')[-1]
-                tmp._Entity__application_label = self.application_label
-                self.cache.append(tmp)
-
     def __getitem__(self, item):
         tmp = None
 
@@ -69,7 +44,15 @@ class EntityIterable:
         headers = {'X-Application': self.application_label, 'Accept': 'application/ld+json'}
         tmp = entitygraph._base_client.make_request('GET', endpoint, headers=headers, params=params).json()['@graph']
 
-        asyncio.run(self.handle_requests(tmp))
+        for x in tmp:
+            parsed_url = urlparse(x['@id'])
+            path_parts = parsed_url.path.strip('/').split('/')
+            entity_id = path_parts[-1] if len(path_parts) > 0 else None
+
+            tmp = Entity()
+            tmp._id = entity_id
+            tmp._application_label = self.application_label
+            self.cache.append(tmp)
 
         return self.cache
 
@@ -82,6 +65,7 @@ class Entity:
 
         self._application_label: str = "default"
         self._id: str = None
+        self.__updated: bool = False
 
         if isinstance(data, Graph):
             self.__graph: Graph = data
@@ -103,24 +87,34 @@ class Entity:
             raise Exception(
                 "This entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
 
+    def __lazy_load(self) -> 'Entity':
+        if self.__graph is None or self.__updated:
+            return self.refresh()
+
     def __str__(self):
         return self.turtle()
 
     def as_graph(self) -> Graph:
+        self.__lazy_load()
         return self.__graph
 
     def turtle(self) -> str:
-        return self.__graph.serialize(format='turtle', encoding='utf-8').decode('utf-8')
+        self.__lazy_load()
+        return self.__graph.serialize(format='turtle')
 
     def json(self) -> dict:
-        return json.loads(self.__graph.serialize(format='json-ld', encoding='utf-8').decode('utf-8'))
+        self.__lazy_load()
+        return json.loads(self.__graph.serialize(format='json-ld'))
 
     def n3(self) -> str:
-        return self.__graph.serialize(format='n3', encoding='utf-8').decode('utf-8')
+        self.__lazy_load()
+        return self.__graph.serialize(format='n3')
 
     @property
     def uri(self) -> URIRef:
-        return URIRef(f"{entitygraph.client.base_url}/api/s/{self._application_label}/entities/{self._id}")
+        self.__check_id()
+        base_url: str = entitygraph.client.base_url.rstrip("/")
+        return URIRef(f"{base_url}/api/s/{self._application_label}/entities/{self._id}")
 
     def __uriref_to_prefixed(self, url: URIRef) -> str:
         if not isinstance(url, URIRef):
@@ -141,7 +135,8 @@ class Entity:
 
         endpoint = 'api/entities'
         headers = {'X-Application': self._application_label, 'Content-Type': "text/turtle", 'Accept': "text/turtle"}
-        response: Response = entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=self.turtle())
+        response: Response = entitygraph._base_client.make_request('POST', endpoint, headers=headers,
+                                                                   data=self.turtle())
 
         tmp = Graph().parse(data=response.text, format='turtle')
         for s, p, o in tmp:
@@ -150,9 +145,9 @@ class Entity:
                 self._id = parts[-1]
                 break
 
-        return self.update()
+        return self
 
-    def update(self) -> 'Entity':
+    def refresh(self) -> 'Entity':
         """
         Retrieves the entity from the API and updates the local Entity object
         """
@@ -163,17 +158,14 @@ class Entity:
         response: Response = entitygraph._base_client.make_request('GET', endpoint, headers=headers)
 
         self.__graph = Graph().parse(data=response.text, format='turtle')
-
+        self.__updated = False
         return self
 
     def get_by_id(self, entity_id: str) -> 'Entity':
-        endpoint = f'api/entities/{entity_id}'
-        headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
-        response: Response = entitygraph._base_client.make_request('GET', endpoint, headers=headers)
-
-        tmp = Entity(data=response.text)
+        tmp = Entity()
         tmp._id = entity_id
         tmp._application_label = self._application_label
+
         return tmp
 
     def get_all(self, property: URIRef = None) -> List['Entity']:
@@ -185,14 +177,14 @@ class Entity:
 
         endpoint = f'api/entities/{self._id}'
         headers = {'X-Application': self._application_label, 'Accept': "text/turtle"}
-        return entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
+        entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
 
     def delete_by_id(self, entity_id: str) -> None:
         endpoint = f'api/entities/{entity_id}'
         headers = {'X-Application': self._application_label, 'Accept': "text/turtle"}
-        return entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
+        entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
 
-    def set_value(self, property: URIRef, value: str | URIRef, language: str = 'en') -> Exception | None:
+    def set_value(self, property: URIRef, value: str | URIRef, language: str = 'en'):
         """
         Sets a specific value.
 
@@ -221,10 +213,13 @@ class Entity:
         if language:
             params['lang'] = language
 
-        return entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=value, params=(params if params else None))
+        entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=value,
+                                              params=(params if params else None))
+        self.__updated = True
+        return self
 
     def set_content(self, property: URIRef, content: Path | BinaryIO | TextIO | bytes | str,
-                    filename: str = None) -> Exception | None:
+                    filename: str = None):
         """
         Sets content.
 
@@ -258,9 +253,12 @@ class Entity:
         }
         params = {'filename': filename}
 
-        return entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=content_data, params=params)
+        entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=content_data,
+                                              params=params)
+        self.__updated = True
+        return self
 
-    def remove_value(self, property: URIRef, language: str = 'en') -> Exception | None:
+    def remove_value(self, property: URIRef, language: str = 'en'):
         """
         Removes a property value.
 
@@ -276,9 +274,12 @@ class Entity:
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
         params = {'lang': language} if language else None
 
-        return entitygraph._base_client.make_request('DELETE', endpoint, headers=headers, params=params)
+        entitygraph._base_client.make_request('DELETE', endpoint, headers=headers, params=params)
 
-    def create_edge(self, property: URIRef, target: 'Entity') -> Exception | None:
+        self.__updated = True
+        return self
+
+    def create_edge(self, property: URIRef, target: 'Entity'):
         """
         Create edge to existing entity (within the same dataset)
 
@@ -296,9 +297,12 @@ class Entity:
 
         endpoint = f"api/entities/{self._id}/links/{prefixed}/{target._id}"
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
-        return entitygraph._base_client.make_request('PUT', endpoint, headers=headers)
+        entitygraph._base_client.make_request('PUT', endpoint, headers=headers)
 
-    def delete_edge(self, property: URIRef, target: 'Entity') -> Exception | None:
+        self.__updated = True
+        return self
+
+    def delete_edge(self, property: URIRef, target: 'Entity'):
         """
         Delete edge to existing entity (within the same dataset)
 
@@ -316,7 +320,10 @@ class Entity:
 
         endpoint = f"api/entities/{self._id}/links/{prefixed}/{target._id}"
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
-        return entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
+        entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
+
+        self.__updated = True
+        return self
 
     def embed(self, property: URIRef, data: str | dict):
         self.__check_id()
@@ -326,4 +333,7 @@ class Entity:
 
         endpoint = f'api/entities/{self._id}/{prefixed}'
         headers = {'X-Application': self._application_label, 'Content-Type': 'text/turtle', 'Accept': 'text/turtle'}
-        return entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=data)
+        entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=data)
+
+        self.__updated = True
+        return self

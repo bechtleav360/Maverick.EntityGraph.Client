@@ -1,6 +1,6 @@
 import requests
 import json
-import httpx
+
 from requests import Response, Request, PreparedRequest
 
 
@@ -33,30 +33,30 @@ class BaseApiClient:
 
         return response
 
-    async def make_async_request(self, method, endpoint, headers=None, params=None, data=None, files=None):
-        url = f"{self.base_url}/{endpoint}"
-        headers = headers or {}
-        headers.update({
-            'X-API-KEY': self.api_key
-        })
-
-        if data and isinstance(data, dict):
-            data = json.dumps(data)
-
-        async with httpx.AsyncClient(verify=not self.ignore_ssl) as client:
-            if method.lower() == 'get':
-                response = await client.get(url, headers=headers, params=params)
-            elif method.lower() == 'post':
-                response = await client.post(url, headers=headers, data=data, files=files)
-            elif method.lower() == 'put':
-                response = await client.put(url, headers=headers, data=data, files=files)
-            elif method.lower() == 'delete':
-                response = await client.delete(url, headers=headers)
-            else:
-                raise ValueError(f"HTTP method '{method}' not supported")
-
-        if response.status_code not in range(200, 300):
-            raise Exception(
-                f"Request failed with status {response.status_code}. Response: {response.text}")
-
-        return response
+    # async def make_async_request(self, method, endpoint, headers=None, params=None, data=None, files=None):
+    #     url = f"{self.base_url}/{endpoint}"
+    #     headers = headers or {}
+    #     headers.update({
+    #         'X-API-KEY': self.api_key
+    #     })
+    #
+    #     if data and isinstance(data, dict):
+    #         data = json.dumps(data)
+    #
+    #     async with httpx.AsyncClient(verify=not self.ignore_ssl) as client:
+    #         if method.lower() == 'get':
+    #             response = await client.get(url, headers=headers, params=params)
+    #         elif method.lower() == 'post':
+    #             response = await client.post(url, headers=headers, data=data, files=files)
+    #         elif method.lower() == 'put':
+    #             response = await client.put(url, headers=headers, data=data, files=files)
+    #         elif method.lower() == 'delete':
+    #             response = await client.delete(url, headers=headers)
+    #         else:
+    #             raise ValueError(f"HTTP method '{method}' not supported")
+    #
+    #     if response.status_code not in range(200, 300):
+    #         raise Exception(
+    #             f"Request failed with status {response.status_code}. Response: {response.text}")
+    #
+    #     return response
