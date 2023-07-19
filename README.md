@@ -20,6 +20,7 @@ import entitygraph
 ```python
 import entitygraph
 from entitygraph import Admin, Entity, Query, Application, Transaction
+from rdflib import SDO
 
 # Defining the host is optional and defaults to https://entitygraph.azurewebsites.net
 entitygraph.connect(api_key="123")
@@ -31,5 +32,5 @@ n3: str = Application().get_by_label("MyApp").Entity().get_by_id("f3f34f").n3()
 
 # For operations within the default application, the Admin, Entity, and Query classes can be directly invoked.
 # In the example below, an entity with id "g93h4g8" is retrieved and its "foaf.name" value is updated to "New Name".
-Entity().get_by_id("g93h4g8").set_value("foaf.name", "New Name")
+Entity().get_by_id("g93h4g8").set_value(SDO.title, "New Name")
 ```
