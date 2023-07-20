@@ -113,7 +113,7 @@ class Entity:
     @property
     def uri(self) -> URIRef:
         self.__check_id()
-        base_url: str = entitygraph.client.base_url.rstrip("/")
+        base_url: str = entitygraph._base_client.base_url.rstrip("/")
         return URIRef(f"{base_url}/api/s/{self._application_label}/entities/{self._id}")
 
     def __uriref_to_prefixed(self, url: URIRef) -> str:
