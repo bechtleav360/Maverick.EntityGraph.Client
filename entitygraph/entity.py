@@ -121,13 +121,14 @@ class Entity:
             raise ValueError(
                 f'Invalid input "{url}". Expected a URIRef instance, e.g., URIRef("https://schema.org/name") or "SDO.name"')
 
-        url_obj = urlparse(str(url))
-        stripped_url = url_obj.netloc + url_obj.path
+        url_str = str(url)
 
         for key in namespace_map:
-            if key in stripped_url:
-                return stripped_url.replace(key, f"{namespace_map[key]}.")
-        return stripped_url
+            if url_str.startswith(key):
+                return url_str.replace(key, f"{namespace_map[key]}.")
+
+        raise ValueError(
+            f'URL "{url}" does not match any namespace in the namespace_map. Please make sure the URL is correct or update the namespace_map.')
 
     def save(self) -> 'Entity':
         if self._id:
