@@ -4,6 +4,7 @@ from .base_client import BaseApiClient
 from .admin import Admin
 from .entity import Entity
 from .entity_builder import EntityBuilder
+from .bulk_builder import BulkBuilder
 from .query import Query
 from .transaction import Transaction
 from .application import Application

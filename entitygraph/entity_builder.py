@@ -10,7 +10,7 @@ class EntityBuilder:
     def __init__(self, types: URIRef | List[URIRef]):
         if entitygraph._base_client is None:
             raise Exception(
-                "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Entity()")
+                "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using EntityBuilder()")
 
         self._application_label: str = "default"
         self.graph = Graph()

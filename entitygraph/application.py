@@ -5,7 +5,7 @@ from rdflib import Graph, URIRef
 from requests import Response
 
 import entitygraph
-from entitygraph import Entity, Query, Admin, EntityBuilder
+from entitygraph import Entity, Query, Admin, EntityBuilder, BulkBuilder
 
 
 class Application:
@@ -33,6 +33,12 @@ class Application:
         entity_builder._application_label = self.label
 
         return entity_builder
+
+    def BulkBuilder(self, entity_builders: list[EntityBuilder]) -> 'BulkBuilder':
+        bulk_builder = BulkBuilder(entity_builders)
+        bulk_builder._application_label = self.label
+
+        return bulk_builder
 
     def Entity(self, data: Graph | str | dict = None, format: str = "turtle") -> 'Entity':
         entity = Entity(data=data, format=format)
