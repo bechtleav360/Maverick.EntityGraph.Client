@@ -26,7 +26,10 @@ class Query:
         headers = {'X-Application': self._application_label, 'Content-Type': 'text/plain', 'Accept': 'text/csv'}
         response: Response = entitygraph._base_client.make_request('POST', endpoint, headers=headers, params=params, data=query)
 
-        return pandas.read_csv(io.BytesIO(response.content))
+        if response.content: 
+            return pandas.read_csv(io.BytesIO(response.content))
+        else: 
+            return pandas.DataFrame()
 
     def construct(self, query: str, repository: str = "entities") -> Graph:
         """
