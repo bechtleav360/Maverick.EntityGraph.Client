@@ -3,10 +3,10 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "entitygraph"
+name = "entitygraph-client"
 dynamic = ["version"]
 description = "Python client for Maverick EntityGraph API"
-authors = [{name = "Bechtle A/V Software Solutions 360°", email = "mail@a365maverick.de"}]
+authors = [{name = "Bechtle A/V Software Solutions 360°", email = "patrick.maue@bechtle.com"}]
 license = { text = "Apache 2.0" }
 readme = "README.md"
 keywords = ["Maverick", "EntityGraph", "API"]
