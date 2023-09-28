@@ -7,9 +7,9 @@ Python 3.7+
 ## Installation & Usage
 ### pip install
 ```sh
-pip install git+https://github.com/mumi/entitygraph-client.git
+pip install git+https://github.com/bechtleav360/entitygraph-client.git
 ```
-(you may need to run `pip` with root permission: `sudo pip install git+https://github.com/mumi/entitygraph-client.git`)
+(you may need to run `pip` with root permission: `sudo pip install git+https://github.com/bechtleav360/entitygraph-client.git`)
 
 Then import the package:
 ```python
