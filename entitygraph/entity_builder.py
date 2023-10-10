@@ -5,6 +5,9 @@ from rdflib import Graph, RDF, Literal, URIRef, BNode
 import entitygraph
 from entitygraph import Entity
 
+   
+
+
 
 class EntityBuilder:
     
@@ -31,27 +34,7 @@ class EntityBuilder:
         if serialized: 
             return self.from_string(serialized, format)
             
-    
-    def from_string(self, serialized: str, format: str = "turtle"): 
-        try: 
-            self.graph.parse(data=serialized, format=format, encoding='utf-8') 
-            return self
-        except Exception as err: 
-            raise err
-        
-    def from_graph(self, graph: Graph): 
-        try: 
-            self.graph = graph
-            return self
-        except Exception as err: 
-            raise err
-
-    def from_entity(self, entity: Entity): 
-        try: 
-            self.graph = entity.as_graph()
-            return self
-        except Exception as err: 
-            raise err
+ 
 
     def add_type(self, type: URIRef): 
         self.graph.add((self.node, RDF.type, type))
@@ -74,3 +57,30 @@ class EntityBuilder:
     def build(self) -> Entity:
         entity = Entity(data=self.graph, scope=self._application_label)
         return entity
+
+    @classmethod
+    def from_string(cls, serialized: str, format: str = "turtle"): 
+        try: 
+            builder = EntityBuilder()
+            builder.graph.parse(data=serialized, format=format, encoding='utf-8') 
+            return builder
+        except Exception as err: 
+            raise err
+        
+    @classmethod
+    def from_graph(graph: Graph): 
+        try: 
+            builder = EntityBuilder()
+            builder.graph = graph
+            return builder
+        except Exception as err: 
+            raise err
+        
+    @classmethod
+    def from_entity(self, entity: Entity): 
+        try: 
+            builder = EntityBuilder()
+            builder.graph = entity.as_graph()
+            return builder
+        except Exception as err: 
+            raise err

@@ -2,6 +2,7 @@ import json
 import logging
 from pathlib import Path
 from random import randint
+import re
 from typing import List, BinaryIO, TextIO
 from urllib.parse import urlparse
 
@@ -204,19 +205,23 @@ class Entity:
         headers = {'X-Application': self._application_label, 'Accept': "text/turtle"}
         entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
 
-    def set_value(self, property: URIRef, value: str | URIRef, language: str = 'en'):
+    def set_value(self, property: URIRef, value: str | URIRef, language: str = 'en') -> 'Entity':
         """
-        Sets a specific value.
+        Sets a specific value. If the value exceeds a certain length, it will be automatically stored as content
 
         :param property: Property (qualified URL)
         :param value: Value (no longer than 255 chars)
         :param language: Language (defaults to "en")
         """
+        if not value: 
+            return self
+
+        if len(value) > 1000:
+            return self.set_content(property=property, content=value, language=language)
+            
+            
         self.__check_id()
-
-        if len(value) > 255:
-            raise ValueError('Value should not be longer than 255 chars')
-
+        
         # Convert property to prefixed version
         prefixed = self.__uriref_to_prefixed(property)
 
@@ -245,8 +250,11 @@ class Entity:
 
         :param property: Property (qualified URL)
         :param content: Content (can be file, path, binary, string)
-        :param filename: Filename (defaults to "file_{random}.bin")
+        :param filename: Filename (defaults to "file_{random}.txt")
         """
+        if not content: 
+            return self
+        
         self.__check_id()
 
         # Convert property to prefixed version
@@ -263,7 +271,7 @@ class Entity:
             content_data = content
 
         if not filename:
-            filename = f'file_{randint(1, 999999999)}.bin'
+            filename = f'file_{randint(1, 999999999)}.txt'
 
         endpoint = f"api/entities/{self._id}/values/{prefixed}"
         headers = {
@@ -357,3 +365,72 @@ class Entity:
 
         self.__updated = True
         return self
+
+
+    @classmethod
+    def match_entity_identifier(cls, identifier: str) -> tuple[str, str] | None:
+        """Checks whether the given string is a valid identifier (can be encoded with scope)
+
+        Args:
+            identifier (str): the string to check
+
+        Returns:
+            tuple[str, str] | None:  A tuple with identifier and scope, or none
+        """
+        match : re.Match[str] = re.match(r'^(?:([a-z]+)\.)?([a-zA-Z0-9]{8})$', identifier)
+        if match: 
+            return match.groups()
+        else: 
+            return None
+            
+
+    @classmethod
+    def match_internal_urn(cls, identifier: str) -> tuple[str, str] | None:
+        """ Checks whether the given identifier is an internal urn (usually coming back from SPARQL queries) 
+            in the following format: 'urn:pwid:meg:e:{scope}.{id}'
+        Args:
+            tuple[str, str] | None:  A tuple with identifier and scope, or none
+
+        Returns:
+            bool: if the given string is an internal urn
+        """
+        match : re.Match[str] =  re.match(r'^urn:pwid:meg:e:(?:([a-z]+)\.)?([a-zA-Z0-9_-]{8})$', identifier, re.ASCII)
+        if match: 
+            return match.groups()
+        else:
+            return None
+            
+
+    @classmethod
+    def from_entity_identifier(cls, identifier: str, scope: str = "default") -> 'Entity': 
+        """Creates an entity object for the given identifier. Will not check if the entity exists. 
+
+        Args:
+            identifier (str): an entity identifier
+            scope (str, optional): The optional scope. Will be overriden by scope embedded in identifier. Defaults to "default".
+
+        Raises:
+            Exception: _description_
+            Exception: _description_
+
+        Returns:
+            Entity: the (lazy loaded) entity 
+        """
+        if not identifier: 
+            raise Exception(f"Missing identifier for creating a new entity") 
+        
+        matched: tuple[str, str] = cls.match_entity_identifier(identifier)
+        if not matched: 
+            matched = cls.match_internal_urn(identifier)
+        
+        
+        if matched: 
+            tmp = Entity()            
+            tmp._id = matched[1]
+            if matched[0]: 
+                tmp._application_label = matched[0]
+            else: 
+                tmp._application_label = scope
+            return tmp
+        else: 
+            raise Exception(f"Invalid entity identifier: '{str}'") 
