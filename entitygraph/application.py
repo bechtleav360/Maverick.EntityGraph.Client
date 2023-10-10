@@ -28,7 +28,7 @@ class Application:
     def __str__(self):
         return f"Application(label={self.label}, key={self.key}, flags={self.flags}, configuration={self.configuration})"
 
-    def EntityBuilder(self, types: URIRef | List[URIRef]) -> EntityBuilder:
+    def EntityBuilder(self, types: URIRef = None) -> EntityBuilder:
         entity_builder = EntityBuilder(types)
         entity_builder._application_label = self.label
 
