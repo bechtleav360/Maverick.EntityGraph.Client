@@ -2,4 +2,3 @@ setuptools >= 21.0.0
 requests >= 2.31.0
 rdflib >= 6.3.0
 pandas>=2.0.3
-aiohttp >= 3.8.4

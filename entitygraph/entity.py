@@ -1,11 +1,9 @@
-import asyncio
 import json
 from pathlib import Path
 from random import randint
 from typing import List, BinaryIO, TextIO
 from urllib.parse import urlparse
 
-import aiohttp
 from rdflib import Graph, URIRef
 from requests import Response
 
@@ -130,14 +128,19 @@ class Entity:
         raise ValueError(
             f'URL "{url}" does not match any namespace in the namespace_map. Please make sure the URL is correct or update the namespace_map.')
 
-    def save(self) -> 'Entity':
+    def save(self, encode=True) -> 'Entity':
         if self._id:
             raise Exception("This entity has already been saved. Please use other methods to modify the entity.")
 
+        content = self.turtle()
+
+        if encode: 
+            content = content.encode(encoding="UTF-8")
+            
+
         endpoint = 'api/entities'
         headers = {'X-Application': self._application_label, 'Content-Type': "text/turtle", 'Accept': "text/turtle"}
-        response: Response = entitygraph._base_client.make_request('POST', endpoint, headers=headers,
-                                                                   data=self.turtle())
+        response: Response = entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=content)
 
         tmp = Graph().parse(data=response.text, format='turtle')
         for s, p, o in tmp:
