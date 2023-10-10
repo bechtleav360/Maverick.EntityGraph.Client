@@ -5,6 +5,9 @@ from rdflib import Graph, RDF, Literal, URIRef, BNode
 import entitygraph
 from entitygraph import Entity
 
+   
+
+
 
 class EntityBuilder:
     
@@ -26,19 +29,19 @@ class EntityBuilder:
             
     def load(self, graph: Graph = None, serialized: str = None, format: str = "turtle"): 
         if graph: 
-            self.graph = self.graph + graph
+            return self.from_graph(graph)
             
         if serialized: 
-            self.graph.parse(data=serialized, format=format, encoding='utf-8') 
+            return self.from_string(serialized, format)
             
-        return self
+ 
 
-    def addType(self, type: URIRef): 
+    def add_type(self, type: URIRef): 
         self.graph.add((self.node, RDF.type, type))
         
         return self
 
-    def addValue(self, property: URIRef, value: str | URIRef):
+    def add_value(self, property: URIRef, value: str | URIRef):
         if isinstance(value, URIRef):
             self.graph.add((self.node, property, value))
         else:
@@ -46,7 +49,7 @@ class EntityBuilder:
 
         return self
 
-    def addRelation(self, property: URIRef, target_entity: Entity):
+    def add_relation(self, property: URIRef, target_entity: Entity):
         self.graph.add((self.node, property, target_entity.uri))
 
         return self
@@ -54,3 +57,30 @@ class EntityBuilder:
     def build(self) -> Entity:
         entity = Entity(data=self.graph, scope=self._application_label)
         return entity
+
+    @classmethod
+    def from_string(cls, serialized: str, format: str = "turtle"): 
+        try: 
+            builder = EntityBuilder()
+            builder.graph.parse(data=serialized, format=format, encoding='utf-8') 
+            return builder
+        except Exception as err: 
+            raise err
+        
+    @classmethod
+    def from_graph(graph: Graph): 
+        try: 
+            builder = EntityBuilder()
+            builder.graph = graph
+            return builder
+        except Exception as err: 
+            raise err
+        
+    @classmethod
+    def from_entity(self, entity: Entity): 
+        try: 
+            builder = EntityBuilder()
+            builder.graph = entity.as_graph()
+            return builder
+        except Exception as err: 
+            raise err
