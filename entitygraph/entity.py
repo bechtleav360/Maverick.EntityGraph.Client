@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 from random import randint
 from typing import List, BinaryIO, TextIO
@@ -56,13 +57,16 @@ class EntityIterable:
 
 
 class Entity:
+
+    _id: None
+    
     def __init__(self, data: Graph | str | dict = None, format: str = 'turtle'):
+        logging.debug("Please use the EntityBuilder to create entity objects")
+        
         if entitygraph._base_client is None:
             raise Exception(
                 "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Entity()")
-
-        self._application_label: str = "default"
-        self._id: str = None
+        
         self.__updated: bool = False
 
         if isinstance(data, Graph):
@@ -79,6 +83,13 @@ class Entity:
                                                     encoding='utf-8') if data is not None else None
             else:
                 raise ValueError(f"Unsupported format: {format}")
+            
+   
+
+        self._id: str = None
+        self._application_label: str = "default"
+
+    
 
     def __check_id(self):
         if not self._id:
@@ -91,6 +102,9 @@ class Entity:
 
     def __str__(self):
         return self.turtle()
+
+
+        
 
     def as_graph(self) -> Graph:
         self.__lazy_load()
@@ -107,6 +121,10 @@ class Entity:
     def n3(self) -> str:
         self.__lazy_load()
         return self.__graph.serialize(format='n3')
+
+    @property
+    def id(self) -> str: 
+        self._id
 
     @property
     def uri(self) -> URIRef:
@@ -141,6 +159,8 @@ class Entity:
         endpoint = 'api/entities'
         headers = {'X-Application': self._application_label, 'Content-Type': "text/turtle", 'Accept': "text/turtle"}
         response: Response = entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=content)
+
+        # identifier = entity.json()["https://w3id.org/av360/megt#inserted"]["@id"]
 
         tmp = Graph().parse(data=response.text, format='turtle')
         for s, p, o in tmp:

@@ -7,19 +7,26 @@ from entitygraph import Entity
 
 
 class EntityBuilder:
-    def __init__(self, types: URIRef | List[URIRef]):
-        if entitygraph._base_client is None:
-            raise Exception(
-                "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using EntityBuilder()")
+    
+
+    def __init__(self, type: URIRef = None):
 
         self._application_label: str = "default"
         self.graph = Graph()
         self.node = BNode()
-        if isinstance(types, list):
-            for t in types:
-                self.graph.add((self.node, RDF.type, t))
-        else:
-            self.graph.add((self.node, RDF.type, types))
+        
+        if type: 
+            self.graph.add((self.node, RDF.type, type))
+            
+    def load(self, graph: Graph = None, serialized: str = None, format: str = "turtle"): 
+        if graph: 
+            self.graph = self.graph + graph
+            
+        if serialized: 
+            self.graph.parse(data=serialized, format=format, encoding='utf-8') 
+
+    def addType(self, type: URIRef): 
+        self.graph.add((self.node, RDF.type, type))
 
     def addValue(self, property: URIRef, value: str | URIRef):
         if isinstance(value, URIRef):
@@ -36,5 +43,4 @@ class EntityBuilder:
 
     def build(self) -> Entity:
         entity = Entity(data=self.graph)
-        entity._application_label = self._application_label
-        return entity.save()
+        return entity
