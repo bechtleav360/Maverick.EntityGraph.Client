@@ -9,9 +9,15 @@ from entitygraph import Entity
 class EntityBuilder:
     
 
-    def __init__(self, type: URIRef = None):
+    def __init__(self, type: URIRef = None, scope: str = "default"):
+        """ Builder for entities. 
 
-        self._application_label: str = "default"
+        Args:
+            type (URIRef, optional): The type of the new entity as URIRef. Defaults to None.
+            scope (str, optional): The scope (or application) in which this . Defaults to "default".
+        """
+
+        self._application_label: str = scope
         self.graph = Graph()
         self.node = BNode()
         
@@ -24,9 +30,13 @@ class EntityBuilder:
             
         if serialized: 
             self.graph.parse(data=serialized, format=format, encoding='utf-8') 
+            
+        return self
 
     def addType(self, type: URIRef): 
         self.graph.add((self.node, RDF.type, type))
+        
+        return self
 
     def addValue(self, property: URIRef, value: str | URIRef):
         if isinstance(value, URIRef):
@@ -42,5 +52,5 @@ class EntityBuilder:
         return self
 
     def build(self) -> Entity:
-        entity = Entity(data=self.graph)
+        entity = Entity(data=self.graph, scope=self._application_label)
         return entity

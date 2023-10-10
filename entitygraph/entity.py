@@ -57,10 +57,8 @@ class EntityIterable:
 
 
 class Entity:
-
-    _id: None
     
-    def __init__(self, data: Graph | str | dict = None, format: str = 'turtle'):
+    def __init__(self, data: Graph | str | dict = None, format: str = 'turtle', scope = "default"):
         logging.debug("Please use the EntityBuilder to create entity objects")
         
         if entitygraph._base_client is None:
@@ -68,7 +66,9 @@ class Entity:
                 "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Entity()")
         
         self.__updated: bool = False
-
+        self._id: str = None
+        self._application_label: str = scope
+        
         if isinstance(data, Graph):
             self.__graph: Graph = data
         else:
@@ -84,11 +84,6 @@ class Entity:
             else:
                 raise ValueError(f"Unsupported format: {format}")
             
-   
-
-        self._id: str = None
-        self._application_label: str = "default"
-
     
 
     def __check_id(self):
@@ -123,8 +118,9 @@ class Entity:
         return self.__graph.serialize(format='n3')
 
     @property
-    def id(self) -> str: 
-        self._id
+    def identifier(self) -> str: 
+        self.__check_id()
+        return self._id
 
     @property
     def uri(self) -> URIRef:
