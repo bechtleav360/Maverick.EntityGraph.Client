@@ -2,7 +2,7 @@
 This is a Python client for the [Maverick EntityGraph](https://github.com/bechtleav360/Maverick.EntityGraph).
 ## Requirements.
 
-Python 3.7+
+Python 3.10+
 
 ## Installation & Usage
 Activate your virtual environment and run either
@@ -31,9 +31,6 @@ Then import the package:
 ```python
 import entitygraph
 ```
-
-
-## Getting started
 
 
 ## Getting Started
