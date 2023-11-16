@@ -1,7 +1,5 @@
 from __future__ import annotations
-from warnings import deprecated
 import re
-from typing import List
 
 from rdflib import XSD, Graph, RDF, Literal, URIRef, BNode
 
