@@ -28,8 +28,8 @@ class Application:
     def __str__(self):
         return f"Application(label={self.label}, key={self.key}, flags={self.flags}, configuration={self.configuration})"
 
-    def EntityBuilder(self, types: URIRef = None) -> EntityBuilder:
-        entity_builder = EntityBuilder(types)
+    def EntityBuilder(self, type: URIRef = None) -> EntityBuilder:
+        entity_builder = EntityBuilder(type)
         entity_builder._application_label = self.label
 
         return entity_builder

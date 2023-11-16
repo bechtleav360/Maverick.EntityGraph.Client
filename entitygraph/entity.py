@@ -6,7 +6,7 @@ import re
 from typing import List, BinaryIO, TextIO
 from urllib.parse import urlparse
 
-from rdflib import Graph, URIRef
+from rdflib import Graph, URIRef, RDF
 from requests import Response
 
 import entitygraph
@@ -59,7 +59,7 @@ class EntityIterable:
 
 class Entity:
     
-    def __init__(self, data: Graph | str | dict = None, format: str = 'turtle', scope = "default"):
+    def __init__(self, data: Graph | str | dict = None, format: str = 'turtle', scope = "default", main_type = None):
         logging.debug("Please use the EntityBuilder to create entity objects")
         
         if entitygraph._base_client is None:
@@ -69,6 +69,7 @@ class Entity:
         self.__updated: bool = False
         self._id: str = None
         self._application_label: str = scope
+        self._main_type = main_type
         
         if isinstance(data, Graph):
             self.__graph: Graph = data
@@ -118,6 +119,15 @@ class Entity:
         self.__lazy_load()
         return self.__graph.serialize(format='n3')
 
+
+
+
+    @property
+    def key(self) -> str: 
+        if '.' in self.identifier:
+            return self.identifier.rsplit('.', 1)[-1]
+        return self.identifier
+
     @property
     def identifier(self) -> str: 
         self.__check_id()
@@ -125,9 +135,8 @@ class Entity:
 
     @property
     def uri(self) -> URIRef:
-        self.__check_id()
         base_url: str = entitygraph._base_client.base_url.rstrip("/")
-        return URIRef(f"{base_url}/api/s/{self._application_label}/entities/{self._id}")
+        return URIRef(f"{base_url}/api/s/{self._application_label}/entities/{self.identifier}")
 
     def __uriref_to_prefixed(self, url: URIRef) -> str:
         if not isinstance(url, URIRef):
@@ -159,14 +168,14 @@ class Entity:
 
         # identifier = entity.json()["https://w3id.org/av360/megt#inserted"]["@id"]
 
-        tmp = Graph().parse(data=response.text, format='turtle')
+        g = Graph().parse(data=response.text, format='turtle')
         
-        
-        for s, p, o in tmp:
-            if 'entities' in str(s):
-                parts = str(s).split('/')
-                self._id = parts[-1]
-                break
+        for sub in g.subjects(RDF.type, self._main_type): 
+            if self._id:
+                raise Exception("Multiple entities of same type in response, unique entity id cannot be inferred.")       
+            self._id = Entity.extract_local_name(s=str(sub))
+            
+
 
         return self
 
@@ -316,16 +325,13 @@ class Entity:
         :param property: Property (qualified URL)
         :param target: Target entity (must be saved first)
         """
-        self.__check_id()
-
-        if not target._id:
-            raise Exception(
-                "Target entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
+        if not target.identifier:
+            raise Exception("Target entity has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_id() to retrieve an existing entity.")
 
         # Convert property to prefixed version
         prefixed = self.__uriref_to_prefixed(property)
 
-        endpoint = f"api/entities/{self._id}/links/{prefixed}/{target._id}"
+        endpoint = f"api/entities/{self.key}/relations/{prefixed}/{target.key}"
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
         entitygraph._base_client.make_request('PUT', endpoint, headers=headers)
 
@@ -401,7 +407,32 @@ class Entity:
             return match.groups()
         else:
             return None
-            
+       
+    @classmethod     
+    def extract_local_name(cls, s: str) -> str | None:
+        """
+        Function to determine if 's' is a URN or URI and extract the local name.
+
+        Args:
+        s (str): A string that is potentially a URN or URI.
+
+        Returns:
+        str: The local name extracted from the URN or URI, or None if 's' is neither.
+        """    
+        # Regular expression for a URN (simplified)
+        urn_regex = r'^urn:[a-zA-Z0-9][a-zA-Z0-9-]{0,31}:[a-zA-Z0-9()+,\-.:=@;$_!*\'%/?#]+$'
+        
+        # Regular expression for a URI (simplified)
+        uri_regex = r'^[a-zA-Z][a-zA-Z0-9+.-]*://'
+
+        if re.match(urn_regex, s):
+            # For a URN, the local name is after the last colon
+            return s.split(':')[-1]
+        elif re.match(uri_regex, s):
+            # For a URI, the local name is typically the part after the last slash
+            return s.split('/')[-1]
+        else:
+            return None
 
     @classmethod
     def from_entity_identifier(cls, identifier: str, scope: str = "default") -> 'Entity': 

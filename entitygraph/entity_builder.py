@@ -1,5 +1,6 @@
 from __future__ import annotations
 import re
+from typing import List
 
 from rdflib import XSD, Graph, RDF, Literal, URIRef, BNode
 
@@ -23,6 +24,7 @@ class EntityBuilder:
         self._application_label: str = scope
         self.graph = Graph()
         self.node = BNode()
+        self.type = type
         
         if type: 
             self.graph.add((self.node, RDF.type, type))
@@ -35,7 +37,7 @@ class EntityBuilder:
             return self.from_string(serialized, format)
             
 
-    def set_additional_type(self, type: URIRef) -> EntityBuilder: 
+    def add_type(self, type: URIRef) -> EntityBuilder: 
         """Adds an additional type definition for the current node
 
         Args:
@@ -45,6 +47,7 @@ class EntityBuilder:
             EntityBuilder: this
         """
         self.graph.add((self.node, RDF.type, type))
+        
         return self
 
     def add_value(self, property: URIRef, value: str | URIRef) -> EntityBuilder: 
@@ -55,28 +58,9 @@ class EntityBuilder:
 
         return self
     
-    def set_value(self, property: URIRef, value: any, language="en") -> EntityBuilder: 
-        pass
-    
-    def add_value(self, property: URIRef, value: any, language="en") -> EntityBuilder: 
-        pass
-    
-    def set_relation(self, property: URIRef, value: any) -> EntityBuilder: 
-        pass
-    
-    def add_relation(self, property: URIRef, value: any) -> EntityBuilder: 
-        pass    
-    
-    def add_embedded(self, property: URIRef, graph: Graph) -> EntityBuilder: 
-        pass
-    
-    
-    
-    
-    
-    
     def add_literal(self,  property: URIRef, value: Literal) -> EntityBuilder: 
         self.graph.add((self.node, property, value))
+        
         return self
     
     def add_string_value(self,  property: URIRef, value: str, lang = "en") -> EntityBuilder: 
@@ -106,10 +90,11 @@ class EntityBuilder:
     def link_to_node(self, property: URIRef, target: URIRef) -> EntityBuilder: 
         self.graph.add((self.node, property, target))
         return self
-    
 
-    def build(self) -> Entity:
-        entity = Entity(data=self.graph, scope=self._application_label)
+    def build(self, save=True) -> Entity:
+        entity = Entity(data=self.graph, scope=self._application_label, main_type=self.type)
+        if save: 
+            entity.save(encode=True)
         return entity
 
     @classmethod
