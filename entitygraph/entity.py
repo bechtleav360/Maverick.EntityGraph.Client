@@ -160,6 +160,8 @@ class Entity:
         # identifier = entity.json()["https://w3id.org/av360/megt#inserted"]["@id"]
 
         tmp = Graph().parse(data=response.text, format='turtle')
+        
+        
         for s, p, o in tmp:
             if 'entities' in str(s):
                 parts = str(s).split('/')
