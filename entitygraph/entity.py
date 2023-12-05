@@ -1,27 +1,129 @@
+import re
 import json
 import logging
+import entitygraph
+
+from entitygraph.namespace_map import namespace_map
+from entitygraph.values import ValuesContainer
 from pathlib import Path
 from random import randint
-import re
+from rdflib import Graph, URIRef, RDF
+from requests import Response
 from typing import List, BinaryIO, TextIO
 from urllib.parse import urlparse
 
-from rdflib import Graph, URIRef, RDF
-from requests import Response
 
-import entitygraph
-from entitygraph.namespace_map import namespace_map
+# This will be the new entity that is going to replace the current Entity class.
+# To ensure functionality until the new Entity class is fully implemented,
+# the old Entity and EntityIterable classes will stay unchanged.
+# Since some python scrips always download the current develop version of the entitygraph client,
+# it is important that before pushing the changes to develop,
+# an (at least small) guide is created to ensure a quick and easy update.
+class EntityNEW:
+    """
+    The first and foremost change between the current Entity class implementation is the dependency upon the
+    application class (Application in application.py).
+
+    The old code did assume, that an Entity instantiation is always preceded by an application instantiation.
+    Therefore the application label was set from the outside.
+
+    This behavior will be changed in the new Entity class, making the instantiation of an application class optional.
+    Since an application label is still required for calling the API, it will now be a part of the constructor.
+
+    Another important change is, that Entities MUST be instantiated with an existing ID. It is therefore necessary,
+    that all Constructor-Methods check, if the ID exists.
+    Entities must, however, still implement lazy loading, which means that aside form the initial ID check, all
+    data will be loaded on usage.
+    To implement lazy loading, the Entity Object will implement properties, that call the entitygraph API on first
+    usage and saves the result in a private property (starting with an underscore). For reference see the self.types.
+
+    To create new Entities, the EntityBuilder class must be used. Once an Entity is build, it will automatically
+    return an Entity Object.
+    """
+    def __init__(self, application_label: str, id_: str):
+        self.application_label = application_label
+        self._id = id_
+
+        self._check_id()
+
+        self._types = None
+        self.values = ValuesContainer(self._id)
+
+    @property
+    def types(self) -> list[str]:
+        """
+        All types of this Entity.
+
+        :return: A list of all the types of this Entity.
+        """
+        if self._types is None:
+            self._types = self._get_own_types()
+        return self._types
+
+    @property
+    def key(self) -> str:
+        """
+        Property for the id without any prefixes.
+
+        :return: The key.
+        """
+        if '.' in self.id:
+            return self.id.rsplit('.', 1)[-1]
+        else:
+            return self.id
+
+    @property
+    def id(self) -> str:
+        """
+        Property for the full id.
+
+        :return: The ID.
+        """
+        return self._id
+
+    def _check_id(self):
+        """
+        This method calls the entitygraph API to ensure, that the ID given in a Constructor-Method exists.
+        """
+        raise NotImplementedError()
+
+    def _get_own_types(self) -> list[str]:
+        """
+        Load this Entities types from the entitygraph API.
+
+        :return: A list of all the types of this Entity.
+        """
+        raise NotImplementedError()
+
+    # The following methods are suggestions. If should be discussed, weather they have a practical use or not.
+    # Also some of these methods might require some additional class methods for instantiating the object with
+    # already existing data, rather then the default lazy loading approach.
+    def load_all_values(self):
+        """
+        Load all existing predicates of this entity from the entitygraph.
+        Both the content and the details are not loaded.
+        """
+        raise NotImplementedError()
+
+    def load_all_data(self):
+        """
+        Loads all existing data (basically the full turtle* object) from the entity graph and parses it into the
+        Entity - ValueContainer - Value - Details relation.
+        """
+        raise NotImplementedError()
+
+
+
+
 
 
 class EntityIterable:
-    def __init__(self, application_label: str, property: str = None):
+    def __init__(self, application_label: str, property_: str = None):
         self.application_label: str = application_label
-        self.property: str = property
+        self.property: str = property_
         self.cache: List[Entity] = []
 
     def __getitem__(self, item):
-        tmp = None
-
         if isinstance(item, slice):
             start = item.start or 0
             stop = item.stop or 10
@@ -42,17 +144,18 @@ class EntityIterable:
         endpoint = 'api/entities'
         params = {'limit': lim, 'offset': off}
         headers = {'X-Application': self.application_label, 'Accept': 'application/ld+json'}
-        tmp = entitygraph._base_client.make_request('GET', endpoint, headers=headers, params=params).json()['@graph']
+        entity_list = entitygraph.base_api_client.make_request('GET', endpoint, headers=headers, params=params).json()['@graph']
 
-        for x in tmp:
-            parsed_url = urlparse(x['@id'])
+        for entity in entity_list:
+            parsed_url = urlparse(entity['@id'])
             path_parts = parsed_url.path.strip('/').split('/')
             entity_id = path_parts[-1] if len(path_parts) > 0 else None
 
-            tmp = Entity()
-            tmp._id = entity_id
-            tmp._application_label = self.application_label
-            self.cache.append(tmp)
+            # TODO After Entity rework, the instantiation of the Entity Object must be adjusted
+            new_entity = Entity()
+            new_entity._id = entity_id
+            new_entity._application_label = self.application_label
+            self.cache.append(entity_list)
 
         return self.cache
 
@@ -61,16 +164,12 @@ class Entity:
     
     def __init__(self, data: Graph | str | dict = None, format: str = 'turtle', scope = "default", main_type = None):
         logging.debug("Please use the EntityBuilder to create entity objects")
-        
-        if entitygraph._base_client is None:
-            raise Exception(
-                "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Entity()")
-        
         self.__updated: bool = False
         self._id: str = None
         self._application_label: str = scope
         self._main_type = main_type
-        
+
+        # Section from-graph
         if isinstance(data, Graph):
             self.__graph: Graph = data
         else:
@@ -85,8 +184,6 @@ class Entity:
                                                     encoding='utf-8') if data is not None else None
             else:
                 raise ValueError(f"Unsupported format: {format}")
-            
-    
 
     def __check_id(self):
         if not self._id:
@@ -99,9 +196,6 @@ class Entity:
 
     def __str__(self):
         return self.turtle()
-
-
-        
 
     def as_graph(self) -> Graph:
         self.__lazy_load()
@@ -119,9 +213,6 @@ class Entity:
         self.__lazy_load()
         return self.__graph.serialize(format='n3')
 
-
-
-
     @property
     def key(self) -> str: 
         if '.' in self.identifier:
@@ -135,7 +226,7 @@ class Entity:
 
     @property
     def uri(self) -> URIRef:
-        base_url: str = entitygraph._base_client.base_url.rstrip("/")
+        base_url: str = entitygraph.base_api_client.base_url.rstrip("/")
         return URIRef(f"{base_url}/api/s/{self._application_label}/entities/{self.identifier}")
 
     def __uriref_to_prefixed(self, url: URIRef) -> str:
@@ -164,7 +255,7 @@ class Entity:
 
         endpoint = 'api/entities'
         headers = {'X-Application': self._application_label, 'Content-Type': "text/turtle", 'Accept': "text/turtle"}
-        response: Response = entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=content)
+        response: Response = entitygraph.base_api_client.make_request('POST', endpoint, headers=headers, data=content)
 
         # identifier = entity.json()["https://w3id.org/av360/megt#inserted"]["@id"]
 
@@ -174,8 +265,6 @@ class Entity:
             if self._id:
                 raise Exception("Multiple entities of same type in response, unique entity id cannot be inferred.")       
             self._id = Entity.extract_local_name(s=str(sub))
-            
-
 
         return self
 
@@ -187,7 +276,7 @@ class Entity:
 
         endpoint = f'api/entities/{self._id}'
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
-        response: Response = entitygraph._base_client.make_request('GET', endpoint, headers=headers)
+        response: Response = entitygraph.base_api_client.make_request('GET', endpoint, headers=headers)
 
         self.__graph = Graph().parse(data=response.text, format='turtle')
         self.__updated = False
@@ -200,7 +289,7 @@ class Entity:
 
         return tmp
 
-    def get_all(self, property: URIRef = None) -> List['Entity']:
+    def get_all(self, property: URIRef = None) -> EntityIterable:
         return EntityIterable(self._application_label,
                               self.__uriref_to_prefixed(property) if property else None)
 
@@ -209,12 +298,12 @@ class Entity:
 
         endpoint = f'api/entities/{self._id}'
         headers = {'X-Application': self._application_label, 'Accept': "text/turtle"}
-        entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
+        entitygraph.base_api_client.make_request('DELETE', endpoint, headers=headers)
 
     def delete_by_id(self, entity_id: str) -> None:
         endpoint = f'api/entities/{entity_id}'
         headers = {'X-Application': self._application_label, 'Accept': "text/turtle"}
-        entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
+        entitygraph.base_api_client.make_request('DELETE', endpoint, headers=headers)
 
     def set_value(self, property: URIRef, value: str | URIRef, language: str = 'en') -> 'Entity':
         """
@@ -229,8 +318,8 @@ class Entity:
 
         if len(value) > 1000:
             return self.set_content(property=property, content=value, language=language)
-            
-            
+
+
         self.__check_id()
         
         # Convert property to prefixed version
@@ -249,8 +338,8 @@ class Entity:
         if language:
             params['lang'] = language
 
-        entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=value,
-                                              params=(params if params else None))
+        entitygraph.base_api_client.make_request('POST', endpoint, headers=headers, data=value,
+                                                 params=(params if params else None))
         self.__updated = True
         return self
 
@@ -292,8 +381,8 @@ class Entity:
         }
         params = {'filename': filename}
 
-        entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=content_data,
-                                              params=params)
+        entitygraph.base_api_client.make_request('POST', endpoint, headers=headers, data=content_data,
+                                                 params=params)
         self.__updated = True
         return self
 
@@ -313,7 +402,7 @@ class Entity:
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
         params = {'lang': language} if language else None
 
-        entitygraph._base_client.make_request('DELETE', endpoint, headers=headers, params=params)
+        entitygraph.base_api_client.make_request('DELETE', endpoint, headers=headers, params=params)
 
         self.__updated = True
         return self
@@ -333,7 +422,7 @@ class Entity:
 
         endpoint = f"api/entities/{self.key}/relations/{prefixed}/{target.key}"
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
-        entitygraph._base_client.make_request('PUT', endpoint, headers=headers)
+        entitygraph.base_api_client.make_request('PUT', endpoint, headers=headers)
 
         self.__updated = True
         return self
@@ -356,7 +445,7 @@ class Entity:
 
         endpoint = f"api/entities/{self._id}/links/{prefixed}/{target._id}"
         headers = {'X-Application': self._application_label, 'Accept': 'text/turtle'}
-        entitygraph._base_client.make_request('DELETE', endpoint, headers=headers)
+        entitygraph.base_api_client.make_request('DELETE', endpoint, headers=headers)
 
         self.__updated = True
         return self
@@ -369,14 +458,14 @@ class Entity:
 
         endpoint = f'api/entities/{self._id}/{prefixed}'
         headers = {'X-Application': self._application_label, 'Content-Type': 'text/turtle', 'Accept': 'text/turtle'}
-        entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=data)
+        entitygraph.base_api_client.make_request('POST', endpoint, headers=headers, data=data)
 
         self.__updated = True
         return self
 
 
-    @classmethod
-    def match_entity_identifier(cls, identifier: str) -> tuple[str, str] | None:
+    @staticmethod
+    def match_entity_identifier(identifier: str) -> tuple[str, str] | None:
         """Checks whether the given string is a valid identifier (can be encoded with scope)
 
         Args:
@@ -392,24 +481,21 @@ class Entity:
             return None
             
 
-    @classmethod
-    def match_internal_urn(cls, identifier: str) -> tuple[str, str] | None:
+    @staticmethod
+    def match_internal_urn(identifier: str) -> tuple[str, str] | None:
         """ Checks whether the given identifier is an internal urn (usually coming back from SPARQL queries) 
             in the following format: 'urn:pwid:meg:e:{scope}.{id}'
         Args:
             tuple[str, str] | None:  A tuple with identifier and scope, or none
-
-        Returns:
-            bool: if the given string is an internal urn
         """
-        match : re.Match[str] =  re.match(r'^urn:pwid:meg:e:(?:([a-z]+)\.)?([a-zA-Z0-9_-]{8})$', identifier, re.ASCII)
-        if match: 
-            return match.groups()
+        match = re.match(r'^urn:pwid:meg:e:(?:([a-z]+)\.)?([a-zA-Z0-9_-]{8})$', identifier, re.ASCII)
+        if match is None:
+            return
         else:
-            return None
+            return match.groups()
        
-    @classmethod     
-    def extract_local_name(cls, s: str) -> str | None:
+    @staticmethod
+    def extract_local_name(s: str) -> str | None:
         """
         Function to determine if 's' is a URN or URI and extract the local name.
 
@@ -435,7 +521,7 @@ class Entity:
             return None
 
     @classmethod
-    def from_entity_identifier(cls, identifier: str, scope: str = "default") -> 'Entity': 
+    def from_entity_identifier(cls, identifier: str, scope: str = "default") -> 'Entity':
         """Creates an entity object for the given identifier. Will not check if the entity exists. 
 
         Args:
@@ -449,14 +535,10 @@ class Entity:
         Returns:
             Entity: the (lazy loaded) entity 
         """
-        if not identifier: 
-            raise Exception(f"Missing identifier for creating a new entity") 
-        
-        matched: tuple[str, str] = cls.match_entity_identifier(identifier)
-        if not matched: 
-            matched = cls.match_internal_urn(identifier)
-        
-        
+        matched = Entity.match_entity_identifier(identifier)
+        if matched is None:
+            matched = Entity.match_internal_urn(identifier)
+
         if matched: 
             tmp = Entity()            
             tmp._id = matched[1]
@@ -466,4 +548,4 @@ class Entity:
                 tmp._application_label = scope
             return tmp
         else: 
-            raise Exception(f"Invalid entity identifier: '{str}'") 
+            raise Exception(f"Invalid entity identifier: '{str}'")
