@@ -8,7 +8,7 @@ class Details:
     a python dictionary (specifically using __getattr__ and __setattr__ methods).
 
     It is important to create some whitelist to ensure only well defined keys are used for details.
-    If someone wants to add a new keyword, it should be done using whatever well defined precess exists for that.
+    If someone wants to add a new keyword, it should be done using whatever well defined process exists for that.
     Optimally that list can be loaded from some easily accessible online source.
 
     It might also make sense to include descriptions for each key (again: dynamically loaded) if this helps using them
