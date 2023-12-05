@@ -37,13 +37,13 @@ import entitygraph
 
 
 ## Getting Started
+
 ```python
 import entitygraph as meg
 from rdflib import SDO
 
-
 # Defining the host is optional and defaults to https://entitygraph.azurewebsites.net
-meg.connect(api_key="...", host="...")
+meg.connect(api_key="...", base_url="...")
 
 # Fetch an entity from the graph
 author: meg.Entity = meg.Entity().get_by_id("...")

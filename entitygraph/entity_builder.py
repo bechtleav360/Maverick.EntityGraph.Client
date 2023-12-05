@@ -1,18 +1,15 @@
 from __future__ import annotations
-import re
-from typing import List
 
-from rdflib import XSD, Graph, RDF, Literal, URIRef, BNode
+import re
 
 from entitygraph import Entity
+from rdflib import XSD, Graph, RDF, Literal, URIRef, BNode
+from typing import List
 
-   
 
-
-
+# The Entity Builder class will be reworked completely to support the fluent API design pattern.
+# This also means, that analogous ValueBuilder and DetailsBuilder (If possible) classes will be added in the future.
 class EntityBuilder:
-    
-
     def __init__(self, type: URIRef = None, scope: str = "default"):
         """ Builder for entities. 
 
@@ -24,7 +21,7 @@ class EntityBuilder:
         self._application_label: str = scope
         self.graph = Graph()
         self.node = BNode()
-        self.type = type
+        self.main_type = type
         
         if type: 
             self.graph.add((self.node, RDF.type, type))
@@ -50,7 +47,7 @@ class EntityBuilder:
         
         return self
 
-    def add_value(self, property: URIRef, value: str | URIRef) -> EntityBuilder: 
+    def add_value(self, property: URIRef, value: str | URIRef) -> EntityBuilder:
         if isinstance(value, URIRef):
             self.graph.add((self.node, property, value))
         else:
@@ -58,12 +55,12 @@ class EntityBuilder:
 
         return self
     
-    def add_literal(self,  property: URIRef, value: Literal) -> EntityBuilder: 
+    def add_literal(self,  property: URIRef, value: Literal) -> EntityBuilder:
         self.graph.add((self.node, property, value))
         
         return self
     
-    def add_string_value(self,  property: URIRef, value: str, lang = "en") -> EntityBuilder: 
+    def add_string_value(self,  property: URIRef, value: str, lang = "en") -> EntityBuilder:
         if not self._is_valid_language_tag(lang): 
             raise ValueError("Not a valid language tag: "+lang)
         
@@ -71,28 +68,28 @@ class EntityBuilder:
         
         return self
     
-    def add_integer_value(self,  property: URIRef, value: int) -> EntityBuilder: 
+    def add_integer_value(self,  property: URIRef, value: int) -> EntityBuilder:
         self.add_literal(property, Literal(value, datatype=XSD.integer))
         return self
     
-    def add_any_value(self,  property: URIRef, value: any) -> EntityBuilder: 
+    def add_any_value(self,  property: URIRef, value: any) -> EntityBuilder:
         self.add_literal(property, Literal(value))
         return self
 
-    def add_relation(self, property: URIRef, target_entity: Entity) -> EntityBuilder: 
+    def add_relation(self, property: URIRef, target_entity: Entity) -> EntityBuilder:
         self.graph.add((self.node, property, target_entity.uri))
         return self
     
-    def link_to_entity(self, property: URIRef, target_entity: Entity) -> EntityBuilder: 
+    def link_to_entity(self, property: URIRef, target_entity: Entity) -> EntityBuilder:
         self.link_to_node(property, target_entity.uri)
         return self
     
-    def link_to_node(self, property: URIRef, target: URIRef) -> EntityBuilder: 
+    def link_to_node(self, property: URIRef, target: URIRef) -> EntityBuilder:
         self.graph.add((self.node, property, target))
         return self
 
     def build(self, save=True) -> Entity:
-        entity = Entity(data=self.graph, scope=self._application_label, main_type=self.type)
+        entity = Entity(data=self.graph, scope=self._application_label, main_type=self.main_type)
         if save: 
             entity.save(encode=True)
         return entity

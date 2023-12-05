@@ -7,10 +7,6 @@ import entitygraph
 
 class Admin:
     def __init__(self):
-        if entitygraph._base_client is None:
-            raise Exception(
-                "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using Admin()")
-
         self._application_label: str = "default"
 
     def import_file(self, file_path: Path, file_mimetype: str = "text/turtle", repository: str = "entities"):
@@ -26,7 +22,7 @@ class Admin:
         headers = {'X-Application': self._application_label}
         with open(file_path, 'rb') as file_mono:
             files = {'fileMono': file_mono}
-            return entitygraph._base_client.make_request('POST', endpoint, params=params, headers=headers, files=files)
+            return entitygraph.base_api_client.make_request('POST', endpoint, params=params, headers=headers, files=files)
 
     def import_endpoint(self, sparql_endpoint: dict, repository: str = "entities"):
         """
@@ -38,7 +34,7 @@ class Admin:
         params = {'repository': repository}
         headers = {'X-Application': self._application_label}
         data = json.dumps(sparql_endpoint)
-        return entitygraph._base_client.make_request('POST', endpoint, params=params, headers=headers, data=data)
+        return entitygraph.base_api_client.make_request('POST', endpoint, params=params, headers=headers, data=data)
 
     def import_content(self, rdf_data: str, content_mimetype: str = "text/turtle", repository: str = "entities"):
         """
@@ -52,7 +48,7 @@ class Admin:
         params = {'repository': repository}
         headers = {'X-Application': self._application_label, 'Content-Type': content_mimetype}
         data = io.BytesIO(rdf_data.encode())
-        return entitygraph._base_client.make_request('POST', endpoint, params=params, headers=headers, data=data)
+        return entitygraph.base_api_client.make_request('POST', endpoint, params=params, headers=headers, data=data)
 
     def reset(self, repository: str = "entities"):
         """
@@ -63,4 +59,4 @@ class Admin:
         endpoint = "api/admin/reset"
         params = {'repository': repository}
         headers = {'X-Application': self._application_label}
-        return entitygraph._base_client.make_request('GET', endpoint, params=params, headers=headers)
+        return entitygraph.base_api_client.make_request('GET', endpoint, params=params, headers=headers)

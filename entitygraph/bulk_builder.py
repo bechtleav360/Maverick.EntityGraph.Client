@@ -6,10 +6,6 @@ from entitygraph import EntityBuilder, Entity
 
 class BulkBuilder:
     def __init__(self, entity_builders: list[EntityBuilder]):
-        if entitygraph._base_client is None:
-            raise Exception(
-                "Not connected. Please connect using entitygraph.connect(api_key=..., host=...) before using EntityBuilder()")
-
         self._application_label: str = "default"
         self.entity_builders = entity_builders
 
@@ -20,4 +16,4 @@ class BulkBuilder:
 
         endpoint = f'api/entities'
         headers = {'X-Application': self._application_label, 'Content-Type': 'text/turtle', 'Accept': 'text/turtle'}
-        entitygraph._base_client.make_request('POST', endpoint, headers=headers, data=tmp)
+        entitygraph.base_api_client.make_request('POST', endpoint, headers=headers, data=tmp)
