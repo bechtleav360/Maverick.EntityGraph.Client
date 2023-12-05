@@ -21,7 +21,7 @@ class EntityBuilder:
         self._application_label: str = scope
         self.graph = Graph()
         self.node = BNode()
-        self.main_type = type
+        self.type = type
         
         if type: 
             self.graph.add((self.node, RDF.type, type))
@@ -89,7 +89,7 @@ class EntityBuilder:
         return self
 
     def build(self, save=True) -> Entity:
-        entity = Entity(data=self.graph, scope=self._application_label, main_type=self.main_type)
+        entity = Entity(data=self.graph, scope=self._application_label, main_type=self.type)
         if save: 
             entity.save(encode=True)
         return entity

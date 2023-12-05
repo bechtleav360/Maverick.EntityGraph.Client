@@ -25,13 +25,13 @@ def __getattr__(name):
     raise AttributeError(f"Module '{__name__}' has no attribute '{name}'")
 
 
-def connect(api_key: str, base_url: str = "https://entitygraph.azurewebsites.net", ignore_ssl: bool = False):
+def connect(api_key: str, host: str = "https://entitygraph.azurewebsites.net", ignore_ssl: bool = False):
     """
     Creates the BaseAPIClient instance necessary for connecting to the entitygraph API.
 
     :param api_key: Authorization key.
-    :param base_url: The host address of the entitygraph API. Default: https://entitygraph.azurewebsites.net.
+    :param host: The host address of the entitygraph API. Default: https://entitygraph.azurewebsites.net.
     :param ignore_ssl: For ignoring ssl verification, if necessary. Default: False.
     """
     global __base_api_client
-    __base_api_client = BaseApiClient(api_key=api_key, base_url=base_url, ignore_ssl=ignore_ssl)
+    __base_api_client = BaseApiClient(api_key=api_key, base_url=host, ignore_ssl=ignore_ssl)

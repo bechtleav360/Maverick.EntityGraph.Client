@@ -18,7 +18,7 @@ class BaseApiClient:
         self.api_key = api_key
         self.ignore_ssl = ignore_ssl
 
-    def make_request(self, method: str, endpoint, **kwargs):
+    def make_request(self, method: str, endpoint: str, **kwargs):
         """
         Sends a request to the entitygraph API.
 

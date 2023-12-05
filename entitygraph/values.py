@@ -165,30 +165,3 @@ class ValuesContainer:
         value = self.__getattr__(predicate)
         value.add_content(content)
 
-
-values = ValuesContainer
-values[SDO.keywords] = "Math"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
