@@ -47,7 +47,7 @@ class EntityNEW:
         self._check_id()
 
         self._types = None
-        self.values = ValuesContainer()
+        self.values = ValuesContainer(self._id)
 
     @property
     def types(self) -> list[str]:
@@ -95,11 +95,21 @@ class EntityNEW:
         """
         raise NotImplementedError()
 
+    # The following methods are suggestions. If should be discussed, weather they have a practical use or not.
+    # Also some of these methods might require some additional class methods for instantiating the object with
+    # already existing data, rather then the default lazy loading approach.
+    def load_all_values(self):
+        """
+        Load all existing predicates of this entity from the entitygraph.
+        Both the content and the details are not loaded.
+        """
+        raise NotImplementedError()
+
     def load_all_data(self):
         """
-        Fully loads the entire entity from the entitygraph, including all values and details.
+        Loads all existing data (basically the full turtle* object) from the entity graph and parses it into the
+        Entity - ValueContainer - Value - Details relation.
         """
-        # The full data must be parsed into this entities properties
         raise NotImplementedError()
 
 

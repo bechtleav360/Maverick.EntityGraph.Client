@@ -12,15 +12,25 @@ class Value:
     """
     A single value used in the Entities.
     """
-    def __init__(self, predicate: URIRef):
+    def __init__(self, entity_id: str, predicate: URIRef):
         if not uri_is_valid_predicate(predicate):
             raise ValueError(f"Cannot add Value for given predicate {predicate}. The given predicate must be a valid "
                              f"predicate in the context of the entity graph (i.e. part of the namespace_map).")
 
+        self._entity_id = entity_id
         self._predicate = predicate
         self._content: (list, None) = None
         # An indication, that the content of the Value Object has been changed.
         self._updated = False
+
+    @property
+    def entity_id(self):
+        """
+        Getter for this Value's entity ID.
+
+        :return: The ID of the entity this value belongs to.
+        """
+        return self._entity_id
 
     @property
     def predicate(self):
@@ -139,8 +149,18 @@ class ValuesContainer:
     """
     Container for multiple Values with lazy loading.
     """
-    def __init__(self):
+    def __init__(self, entity_id: str):
+        self._entity_id = entity_id
         self._values = {}
+
+    @property
+    def entity_id(self):
+        """
+        Getter for this ValueContainers entity ID.
+
+        :return: The ID of the entity this container belongs to.
+        """
+        return self._entity_id
 
     def __getattr__(self, predicate: (str, URIRef)) -> Value:
         """
@@ -151,7 +171,7 @@ class ValuesContainer:
         :return: A Value Object.
         """
         if predicate not in self._values:
-            self._values[predicate] = Value(predicate)
+            self._values[predicate] = Value(self.entity_id, predicate)
 
         return self._values[predicate]
 
