@@ -1,13 +1,16 @@
 __version__ = "0.0.23"
 
-from .base_client import BaseApiClient
-from .admin import Admin
-from .entity import Entity
-from .entity_builder import EntityBuilder
-from .bulk_builder import BulkBuilder
-from .query import Query
-from .transaction import Transaction
-from .application import Application
+from entitygraph.admin import Admin
+from entitygraph.base_client import BaseApiClient
+from entitygraph.entity.entity_builder import EntityBuilder
+from entitygraph.bulk_builder import BulkBuilder
+from entitygraph.entity.entity import Entity, EntityNEW
+from entitygraph.query import Query
+from entitygraph.entity.values_and_relations.values_and_relations_base import ValuesAndRelationsBase
+from entitygraph.entity.values_and_relations.value import Value, ValueContainer
+from entitygraph.entity.values_and_relations.relation import Relation, RelationContainer
+from entitygraph.transaction import Transaction
+from entitygraph.application import Application, ApplicationNEW
 
 __base_api_client: (BaseApiClient, None) = None
 

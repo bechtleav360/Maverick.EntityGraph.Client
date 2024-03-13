@@ -1,8 +1,10 @@
 import json
 import logging
-
 import requests
+
 from requests import Response, Request, PreparedRequest
+
+logger = logging.getLogger(__name__)
 
 
 class BaseApiClient:
@@ -33,13 +35,14 @@ class BaseApiClient:
         kwargs["headers"] = kwargs["headers"] if "headers" in kwargs else {}
         kwargs["headers"]["X-API-KEY"] = self.api_key
 
-        if "data" in kwargs and kwargs["data"] is not None and not isinstance(kwargs["data"], str):
+        if "data" in kwargs and kwargs["data"] is not None and isinstance(kwargs["data"], dict):
             try:
                 kwargs["data"] = json.dumps(kwargs["data"])
             except TypeError as t_e:
                 logging.error(t_e)
                 raise TypeError("The given data for the entitygraph must be json serializable.")
 
+        logger.debug(f"Making {method} request to {url}. Arguments: {kwargs}")
         request: Request = requests.Request(method, url, **kwargs)
 
         with requests.Session() as s:

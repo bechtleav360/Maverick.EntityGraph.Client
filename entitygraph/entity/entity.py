@@ -1,16 +1,19 @@
 import re
 import json
 import logging
+import requests
 import entitygraph
 
 from entitygraph.namespace_map import namespace_map
-from entitygraph.values import ValuesContainer
+from entitygraph.utils import uri_is_valid_predicate
 from pathlib import Path
 from random import randint
-from rdflib import Graph, URIRef, RDF
+from rdflib import Graph, URIRef, RDF, SDO
 from requests import Response
 from typing import List, BinaryIO, TextIO
 from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 
 # This will be the new entity that is going to replace the current Entity class.
@@ -40,25 +43,31 @@ class EntityNEW:
     To create new Entities, the EntityBuilder class must be used. Once an Entity is build, it will automatically
     return an Entity Object.
     """
-    def __init__(self, application_label: str, id_: str):
-        self.application_label = application_label
+    def __init__(self, application_label: str, id_: (str, None) = None):
+        self._application_label = application_label
         self._id = id_
 
-        self._check_id()
+        # Check, if id is valid
+        if self._id is not None:
+            self._load_entity()
 
-        self._types = None
-        self.values = ValuesContainer(self._id)
+        self._types: (list[URIRef], None) = None
+        self.values = entitygraph.ValueContainer(self._application_label, entity_id=self._id)
+        self.relations = entitygraph.RelationContainer(self._application_label, entity_id=self._id)
+
+        if self._id is not None:
+            logger.debug(f"Created entity for existing id {self._id} on application {self._application_label}.")
+        else:
+            logger.debug(f"Created new entity on {self._application_label} (not jet saved!).")
 
     @property
-    def types(self) -> list[str]:
+    def application_label(self):
         """
-        All types of this Entity.
+        Getter for this Value's entity ID.
 
-        :return: A list of all the types of this Entity.
+        :return: The ID of the entity this value belongs to.
         """
-        if self._types is None:
-            self._types = self._get_own_types()
-        return self._types
+        return self._application_label
 
     @property
     def key(self) -> str:
@@ -67,10 +76,13 @@ class EntityNEW:
 
         :return: The key.
         """
-        if '.' in self.id:
-            return self.id.rsplit('.', 1)[-1]
+        if self._id is not None:
+            if '.' in self.id:
+                return self.id.rsplit('.', 1)[-1]
+            else:
+                return self.id
         else:
-            return self.id
+            raise ValueError("New entity does not have a key jet.")
 
     @property
     def id(self) -> str:
@@ -81,19 +93,85 @@ class EntityNEW:
         """
         return self._id
 
-    def _check_id(self):
+    @property
+    def types(self) -> list[URIRef]:
         """
-        This method calls the entitygraph API to ensure, that the ID given in a Constructor-Method exists.
-        """
-        raise NotImplementedError()
+        All types of this Entity.
 
-    def _get_own_types(self) -> list[str]:
+        :return: A list of all the types of this Entity.
+        """
+        if self._id is not None and self._types is None:
+            self._types = self._get_own_types()
+        return self._types
+
+    @types.setter
+    def types(self, new_type: (URIRef, str)):
+        """
+        Add a new type to a new entity.
+
+        :param new_type: One of the types of this entity.
+        """
+        if self._id is not None:
+            logger.error("Cannot add new type to an already existing entity.")
+            raise ValueError("Cannot add new type to an already existing entity.")
+
+        if isinstance(new_type, str):
+            new_type = URIRef(new_type)
+        elif not isinstance(new_type, URIRef):
+            logger.error("Cannot add new type to an already existing entity.")
+            raise ValueError("Cannot add new type to an already existing entity.")
+
+        if not uri_is_valid_predicate(new_type):
+            raise ValueError(f"Cannot add Type {new_type}. The given predicate must be a valid "
+                             f"predicate in the context of the entity graph (i.e. part of the namespace_map).")
+
+        if self._types is None:
+            self._types = [new_type]
+        else:
+            self._types.append(new_type)
+
+    @property
+    def uri_ref(self) -> URIRef:
+        """
+        The URI of this entity.
+
+        :return: URI of this entity, if it exists.
+        """
+        if self._id is not None:
+            base_url: str = entitygraph.base_api_client.base_url.rstrip("/")
+            return URIRef(f"{base_url}/api/s/{self._application_label}/entities/{self.id}")
+        else:
+            logger.error("Cannot access URI of an entity, that has not been saved jet.")
+            raise ValueError("Cannot access URI of an entity, that has not been saved jet.")
+
+    def _get_own_types(self) -> list[URIRef]:
         """
         Load this Entities types from the entitygraph API.
 
         :return: A list of all the types of this Entity.
         """
-        raise NotImplementedError()
+        entity_info = self._load_entity()
+
+        try:
+            return [entity_type for entity_type in entity_info["@type"]]
+        except KeyError:
+            logger.error("Did not find expected key '@type' in response.")
+            raise KeyError("Missing key @type.")
+
+    def _load_entity(self):
+        """
+        This method calls the entitygraph API to ensure, that the ID given in a Constructor-Method exists.
+        """
+        endpoint = f'api/entities/{self._id}'
+        headers = {'X-Application': self._application_label, 'accept': 'application/ld+json'}
+        response: Response = entitygraph.base_api_client.make_request('GET', endpoint, headers=headers)
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as http_e:
+            logger.error(f"Error when trying to reach {endpoint} when checking id.")
+            raise http_e
+
+        return response.json()
 
     # The following methods are suggestions. If should be discussed, weather they have a practical use or not.
     # Also some of these methods might require some additional class methods for instantiating the object with
@@ -243,11 +321,27 @@ class Entity:
         raise ValueError(
             f'URL "{url}" does not match any namespace in the namespace_map. Please make sure the URL is correct or update the namespace_map.')
 
+    @staticmethod
+    def uriref_to_prefixed(url: URIRef) -> str:
+        if not isinstance(url, URIRef):
+            raise ValueError(
+                f'Invalid input "{url}". Expected a URIRef instance, e.g., URIRef("https://schema.org/name") or "SDO.name"')
+
+        url_str = str(url)
+
+        for key in namespace_map:
+            if url_str.startswith(key):
+                return url_str.replace(key, f"{namespace_map[key]}.")
+
+        raise ValueError(
+            f'URL "{url}" does not match any namespace in the namespace_map. Please make sure the URL is correct or update the namespace_map.')
+
     def save(self, encode=True) -> 'Entity':
         if self._id:
             raise Exception("This entity has already been saved. Please use other methods to modify the entity.")
 
         content = self.turtle()
+        print(content)
 
         if encode: 
             content = content.encode(encoding="UTF-8")
@@ -260,6 +354,7 @@ class Entity:
         # identifier = entity.json()["https://w3id.org/av360/megt#inserted"]["@id"]
 
         g = Graph().parse(data=response.text, format='turtle')
+        print(g)
         
         for sub in g.subjects(RDF.type, self._main_type): 
             if self._id:
@@ -549,3 +644,58 @@ class Entity:
             return tmp
         else: 
             raise Exception(f"Invalid entity identifier: '{str}'")
+
+
+if __name__ == '__main__':
+    uri_ref = URIRef("https://schema.org/name")
+    print(uri_ref)
+
+    print(URIRef(uri_ref))
+
+    # from rdflib import SDO
+    # entitygraph.connect("Tzre7295T10z1K")
+    #
+    # app = entitygraph.application.Application()
+    # new_e = app.EntityBuilder(SDO.LearningResource)
+    # new_e.add_value(SDO.name, "test")
+    # e = new_e.build()
+    # print(e.key)
+
+
+
+    # id_ = "bvu_1y4x"
+    # id_ = "yiwbe7xx"
+    #
+    # e = EntityNEW("default", id_=id_)
+    #
+    # print(e.types)
+    #
+    # e.values[SDO.description].add_content("test", 1, 5)
+    # print(e.values[SDO.description].content_lst)
+    # e.values[SDO.description].remove_content("test", 5)
+    # print(e.values[SDO.description].content_lst)
+    #
+    # print(e.values[SDO.name].content_lst)
+
+
+
+    # value = "test"
+    # predicate = "https://schema.org/name"
+    #
+    # from entitygraph.utils import generate_value_identifier
+    # print(generate_value_identifier(predicate, value))
+
+
+
+    # headers = {'X-Application': e.application_label, 'accept': 'text/x-turtlestar'}
+    # resp = entitygraph.base_api_client.make_request('GET', f"/api/entities/{id_}/values?prefixedProperty={predicate}",
+    #                                                 headers=headers)
+    #
+    # print(resp.text)
+    #
+    # import re
+    #
+    # print(re.findall('[a-f0-9]{64}', resp.text))
+
+
+
