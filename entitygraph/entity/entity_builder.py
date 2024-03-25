@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import re
+import entitygraph
 
-from entitygraph import Entity
 from rdflib import XSD, Graph, RDF, Literal, URIRef, BNode
 from typing import List
 
@@ -76,11 +76,11 @@ class EntityBuilder:
         self.add_literal(property, Literal(value))
         return self
 
-    def add_relation(self, property: URIRef, target_entity: Entity) -> EntityBuilder:
+    def add_relation(self, property: URIRef, target_entity: entitygraph.Entity) -> EntityBuilder:
         self.graph.add((self.node, property, target_entity.uri))
         return self
     
-    def link_to_entity(self, property: URIRef, target_entity: Entity) -> EntityBuilder:
+    def link_to_entity(self, property: URIRef, target_entity: entitygraph.Entity) -> EntityBuilder:
         self.link_to_node(property, target_entity.uri)
         return self
     
@@ -88,8 +88,8 @@ class EntityBuilder:
         self.graph.add((self.node, property, target))
         return self
 
-    def build(self, save=True) -> Entity:
-        entity = Entity(data=self.graph, scope=self._application_label, main_type=self.type)
+    def build(self, save=True) -> entitygraph.Entity:
+        entity = entitygraph.Entity(data=self.graph, scope=self._application_label, main_type=self.type)
         if save: 
             entity.save(encode=True)
         return entity
@@ -113,7 +113,7 @@ class EntityBuilder:
             raise err
         
     @classmethod
-    def from_entity(self, entity: Entity) -> EntityBuilder: 
+    def from_entity(self, entity: entitygraph.Entity) -> EntityBuilder:
         try: 
             builder = EntityBuilder()
             builder.graph = entity.as_graph()

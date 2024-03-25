@@ -1,11 +1,10 @@
 from requests import Response
 
 import entitygraph
-from entitygraph import EntityBuilder, Entity
 
 
 class BulkBuilder:
-    def __init__(self, entity_builders: list[EntityBuilder]):
+    def __init__(self, entity_builders: list[entitygraph.EntityBuilder]):
         self._application_label: str = "default"
         self.entity_builders = entity_builders
 

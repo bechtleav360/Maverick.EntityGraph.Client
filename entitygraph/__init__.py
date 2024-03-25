@@ -1,13 +1,16 @@
-__version__ = "0.0.23"
+__version__ = "0.1.00"
 
-from .base_client import BaseApiClient
-from .admin import Admin
-from .entity import Entity
-from .entity_builder import EntityBuilder
-from .bulk_builder import BulkBuilder
-from .query import Query
-from .transaction import Transaction
-from .application import Application
+from entitygraph.admin import Admin
+from entitygraph.base_client import BaseApiClient
+from entitygraph.entity.entity import Entity
+from entitygraph.entity.container.icontainer import IContainerAbstract
+from entitygraph.entity.container.container import Container
+from entitygraph.entity.values_and_relations.details.detail import Detail, DetailContainer
+from entitygraph.entity.values_and_relations.values_and_relations_base import ValuesAndRelationsBase
+from entitygraph.entity.values_and_relations.value import Value, ValueContainer
+from entitygraph.entity.values_and_relations.relation import Relation, RelationContainer
+from entitygraph.transaction import Transaction
+from entitygraph.application import Application
 
 __base_api_client: (BaseApiClient, None) = None
 
@@ -25,7 +28,7 @@ def __getattr__(name):
     raise AttributeError(f"Module '{__name__}' has no attribute '{name}'")
 
 
-def connect(api_key: str, host: str = "https://entitygraph.azurewebsites.net", ignore_ssl: bool = False):
+def connect(api_key: str, host: str = "https://graph.q14.net", ignore_ssl: bool = False):
     """
     Creates the BaseAPIClient instance necessary for connecting to the entitygraph API.
 
@@ -35,3 +38,4 @@ def connect(api_key: str, host: str = "https://entitygraph.azurewebsites.net", i
     """
     global __base_api_client
     __base_api_client = BaseApiClient(api_key=api_key, base_url=host, ignore_ssl=ignore_ssl)
+

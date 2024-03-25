@@ -1,181 +1,387 @@
+import csv
+import entitygraph
 import json
-from typing import List
+import io
+import logging
+import requests
 
-from rdflib import Graph, URIRef
+from entitygraph.namespace_map import namespace_map
+from entitygraph.utils import uri_ref_to_prefixed, generate_value_identifier
+from rdflib import BNode, Graph, Literal, RDF, URIRef
 from requests import Response
 
-import entitygraph
-from entitygraph import Entity, Query, Admin, EntityBuilder, BulkBuilder
+logger = logging.getLogger(__name__)
 
 
 class Application:
-    def __init__(self, label: str = None, flags: dict = {"isPersistent": True, "isPublic": True},
-                 configuration: dict = {}):
-        self.label: str = label
-        self.key: str = None
-        self.flags: dict = flags
-        self.configuration: dict = configuration
+    """Static class providing API connection methods for entities/query/application labels
+    """
+    @staticmethod
+    def load_applications(tag: str | None = None) -> list:
+        """Loads all applications from the entity graph and returns it as dictionary
 
-    def __check_key(self):
-        if not self.key:
-            raise Exception(
-                "This application has not been saved yet or does not exist. Please call .save() first to save the entity or use .get_by_label() to retrieve an existing application.")
+        :param tag: Identifier for a subset of applications.
+        :type tag: str | None
 
-    def __str__(self):
-        return f"Application(label={self.label}, key={self.key}, flags={self.flags}, configuration={self.configuration})"
+        :return: List of application labels
+        :rtype: list
+        """
 
-    def EntityBuilder(self, type: URIRef = None) -> EntityBuilder:
-        entity_builder = EntityBuilder(type)
-        entity_builder._application_label = self.label
+        try:
+            logger.info(f"Requesting all application from entity graph with tag {tag}")
 
-        return entity_builder
+            params = {}
+            if tag:
+                params["tag"] = tag
 
-    def BulkBuilder(self, entity_builders: list[EntityBuilder]) -> 'BulkBuilder':
-        bulk_builder = BulkBuilder(entity_builders)
-        bulk_builder._application_label = self.label
+            response: Response = entitygraph.base_api_client.make_request(
+                'GET',
+                'api/applications',
+                params=params
+            )
+            response.raise_for_status()
 
-        return bulk_builder
+            result = []
+            for app in json.loads(response.text):
+                if app['label']:
+                    logging.info(f"Found application with label: {app['label']}")
+                    result.append(app['label'])
+            return result
+        except requests.exceptions.ReadTimeout as err_rt:
+            logger.error(f"Request to update link failed due to timeout, rescheduling execution. Traceback: {err_rt}")
+            raise err_rt
+        except requests.exceptions.HTTPError as err_h:
+            logger.error(
+                f"Request to update link failed with code {err_h.response.status_code} and message: "
+                f"{err_h.response.reason} (URL: <{err_h.request.url}>). Traceback: {err_h}"
+            )
+            if err_h.response.text:
+                logger.error(f"Error details: \n {err_h.response.text}", )
 
-    def Entity(self, data: Graph | str | dict = None, format: str = "turtle") -> 'Entity':
-        entity = Entity(data=data, format=format)
-        entity._application_label = self.label
+            raise err_h
+        except Exception as err:
+            logger.error(f"failed to query graph. reason: {err}")
+            raise err
+
+    @staticmethod
+    def run_query(query: str, application_label: str) -> list:
+        """Runs a query on the entity graph and returns the result as a list of dictionaries
+
+        :param query: The query string to run.
+        :type query: str
+        :param application_label: The application label in the context of the entitygraph.
+        :type application_label: str
+
+        :returns: A list of dictionaries representing the query result.
+        :rtype: list
+        """
+
+        try:
+            logger.info(f"Running query on application label '{application_label}': \n {query}")
+
+            response: Response = entitygraph.base_api_client.make_request(
+                'POST',
+                'api/query/select',
+                data=query.encode("utf-8"),
+                headers={
+                    "Content-Type": "text/plain",
+                    "Accept": "text/csv;charset=UTF-8",
+                    "X-Application": application_label,
+                },
+            )
+            response.raise_for_status()
+
+            result = []
+            if not response.text:
+                logging.info(f"No candidates found in scope '{application_label}'")
+                return result
+
+            io_string = io.StringIO(response.text)
+
+            class CustomDictReader(csv.DictReader):
+                def __next__(self):
+                    row = super().__next__()
+                    # Decode each field value based on the response's encoding
+                    return {
+                        key: value_.decode(response.encoding)
+                        if isinstance(value_, bytes) else value_
+                        for key, value_ in row.items()
+                    }
+
+            reader = CustomDictReader(io_string, delimiter=',')
+            return list(reader)
+
+        except requests.exceptions.ReadTimeout as err_rt:
+            logger.error("Request to query graph failed due to timeout")
+            raise err_rt
+
+        except requests.exceptions.HTTPError as err_h:
+            logger.error(f"Request to query graph failed with code {err_h.response.status_code} and message: "
+                          f"{err_h.response.reason} (URL: <err_h.request.url>)")
+            if err_h.response.text:
+                logging.error(f"Error details: \n {err_h.response.text}")
+            raise err_h
+
+        except Exception as err:
+            logger.error(f"Failed to run query: {err}")
+            raise err
+
+    @staticmethod
+    def _save_detail(entity_id: str, detail: entitygraph.Detail):
+        """
+        Save a detail
+
+        :param entity_id: The id of the entity, this detail belongs to.
+        :param detail: A detail class object.
+        """
+        headers = {
+            'X-Application': detail.application_label,
+            'Content-Type': "text/plain",
+            'Accept': "text/turtle"
+        }
+        params = {"valueIdentifier": detail.value_identifier}
+        response: Response = entitygraph.base_api_client.make_request(
+            'POST',
+            f'api/entities/{entity_id}/values/{detail.value_predicate}/details/{detail.predicate}',
+            headers=headers,
+            data=detail.content.encode('utf-8'),
+            params=params
+        )
+        response.raise_for_status()
+
+    @staticmethod
+    def _delete_detail(entity_id: str, detail: entitygraph.Detail):
+        """
+        Delete a detail.
+
+        :param entity_id: The id of the entity, this detail belongs to.
+        :param detail: A detail class object.
+        """
+        headers = {
+            'X-Application': detail.application_label,
+            'Accept': "text/turtle"
+        }
+        params = {"valueIdentifier": detail.value_identifier}
+        response: Response = entitygraph.base_api_client.make_request(
+            'DELETE',
+            f'api/entities/{entity_id}/values/{detail.value_predicate}/details/{detail.predicate}',
+            headers=headers,
+            params=params
+        )
+        response.raise_for_status()
+
+    @staticmethod
+    def create_entity(entity: entitygraph.Entity):
+        """
+        Create a new entity from an entity object.
+
+        :param entity: An entity object without an ID.
+
+        :return: The given entity.
+        """
+        if entity.id is not None:
+            logger.error("Cannot create new entity, since it already exists. Use 'save_entity' instead.")
+            raise ValueError("Cannot create new entity, since it already exists. Use 'save_entity' instead.")
+
+        # Instantiate graph
+        graph = Graph()
+        node = BNode()
+
+        # Add entity types to teh graph
+        for entity_type in entity.types:
+            graph.add((node, RDF.type, URIRef(entity_type)))
+
+        # Add values to the graph
+        for predicate, content_lst in entity.values.items():
+            for literal in content_lst:
+                name = ""
+                for key, value_ in namespace_map.items():
+                    if value_ == predicate.split('.')[0]:
+                        name = key + predicate.split('.')[1]
+                        break
+                if not name:
+                    raise ValueError(f"Could not find predicate {predicate}")
+
+                graph.add((node, URIRef(name), Literal(literal)))
+
+        # TODO Relations
+        # # Add relations to the graph
+        # for predicate, content_lst in entity.relations.items():
+        #     for uri_ref in content_lst:
+        #         name = ""
+        #         for key, value_ in namespace_map.items():
+        #             if value_ == predicate.split('.')[0]:
+        #                 name = key + predicate.split('.')[1]
+        #                 break
+        #         if not name:
+        #             raise ValueError(f"Could not find predicate {predicate}")
+        #
+        #         graph.add((node, URIRef(name), uri_ref))
+
+        # Save entity
+        entity_as_turtle = graph.serialize(format='turtle')
+        logger.info("Creating new graph:")
+        logger.info(f"{entity_as_turtle}")
+
+        headers = {
+            'X-Application': entity.application_label,
+            'Content-Type': "text/turtle",
+            'Accept': "application/ld+json"
+        }
+        response: Response = entitygraph.base_api_client.make_request(
+            'POST',
+            'api/entities',
+            headers=headers,
+            data=entity_as_turtle.encode(encoding="UTF-8")
+        )
+
+        response.raise_for_status()
+        new_entity_id = response.json()["@graph"][0]["@graph"][0]["@id"].split(":")[-1]
+        print(f"Created new entity with id {new_entity_id}")
+        logger.info(f"Created new entity with id {new_entity_id}")
+
+        # Save details
+        for value_ in entity.values:
+            for literal in value_.content_lst():
+                details: entitygraph.DetailContainer = value_.details(literal)
+                for detail in details:
+                    if detail.has_changes():
+                        if detail.remove_old:
+                            Application._delete_detail(new_entity_id, detail)
+                        Application._save_detail(new_entity_id, detail)
+
+        return entitygraph.Entity(entity.application_label, id_=new_entity_id)
+
+    @staticmethod
+    def save_entity(entity: entitygraph.Entity):
+        """
+        Save all changes for an already existing entity.
+
+        :param entity: An entity object.
+
+        :return: The given entity object.
+        """
+        def add_value_to_entity_remote(path: str, item: entitygraph.ValuesAndRelationsBase, content: str):
+            """Helper for adding new values to the entity graph
+
+            :param path: Either value or relations.
+            :type path: str
+            :param item: A value/relation object.
+            :type item: entitygraph.ValuesAndRelationsBase
+            :param content: A literal to be added to this value/relation.
+            :type content: str
+            """
+
+            prefixed = uri_ref_to_prefixed(URIRef(item.predicate))
+            endpoint = f"api/entities/{item.entity_id}/{path}/{prefixed}"
+            headers = {
+                'X-Application': item.application_label,
+                'Content-Type': 'text/plain',
+                'Accept': 'application/ld+json'
+            }
+            params = {"languageTag": item.language}
+            response: Response = entitygraph.base_api_client.make_request(
+                'POST',
+                endpoint,
+                headers=headers,
+                data=content,
+                params=params
+            )
+            response.raise_for_status()
+
+        def remove_value_from_entity_remote(path: str, item: entitygraph.ValuesAndRelationsBase, content):
+            """Helper for removing a value from the entity graph
+
+            :param path: Either value or relations.
+            :type path: str
+            :param item: A value/relation object.
+            :type item: entitygraph.ValuesAndRelationsBase
+            :param content: A literal to be removed from this value/relation.
+            :type content: str
+            """
+
+            prefixed = uri_ref_to_prefixed(URIRef(item.predicate))
+            endpoint = f"api/entities/{item.entity_id}/{path}/{prefixed}"
+            headers = {
+                'X-Application': item.application_label,
+                'Accept': 'application/ld+json'
+            }
+            params = {
+                "languageTag": item.language,
+                "valueIdentifier": generate_value_identifier(item.predicate, content)
+            }
+            response: Response = entitygraph.base_api_client.make_request(
+                'DELETE',
+                endpoint,
+                headers=headers,
+                params=params
+            )
+            response.raise_for_status()
+
+        for value_ in entity.values:
+            for new_content in value_.new_content():
+                add_value_to_entity_remote("values", value_, new_content)
+            for removed_content in value_.removed_content():
+                remove_value_from_entity_remote("values", value_, removed_content)
+
+        # TODO Relations
+        # for relation in entity.relations:
+        #     for new_content in relation.new_content():
+        #         add_value_to_entity_remote("relations", relation, new_content)
+        #     for removed_content in relation.removed_content():
+        #         remove_value_from_entity_remote("relations", relation, removed_content)
+
+        # Save details
+        for value_ in entity.values:
+            for literal in value_.content_lst():
+                details: entitygraph.DetailContainer = value_.details(literal)
+                for detail in details:
+                    if detail.has_changes():
+                        if detail.remove_old:
+                            Application._delete_detail(entity.id, detail)
+                        Application._save_detail(entity.id, detail)
 
         return entity
 
-    def Query(self) -> 'Query':
-        query = Query()
-        query._application_label = self.label
+    @staticmethod
+    def delete_entity(entity: entitygraph.Entity):
+        """Delete an entity
 
-        return query
+        :param entity: An entity object.
+        :type entity: entitygraph.Entity
+        """
 
-    def Admin(self) -> 'Admin':
-        admin = Admin()
-        admin._application_label = self.label
-
-        return admin
-
-    def save(self) -> 'Application':
-        endpoint = "api/applications"
-        headers = {'Content-Type': 'application/json'}
+        endpoint = f"api/entities/{entity.id}"
+        headers = {
+            'X-Application': entity.application_label,
+            'Accept': 'application/ld+json'
+        }
         response: Response = entitygraph.base_api_client.make_request(
-            'POST',
+            'DELETE',
             endpoint,
-            headers=headers,
-            data=json.dumps({
-              "label": self.label,
-              "flags": self.flags,
-              "configuration": self.configuration
-            })
+            headers=headers
         )
+        response.raise_for_status()
 
-        self.key = response.json().get("key")
+    @staticmethod
+    def delete_entity_by_id(entity_id: str, application_label: str):
+        """Delete an entity by its ID
 
-        return self
-
-    def delete(self):
-        self.__check_key()
-
-        endpoint = f"api/applications/{self.key}"
-        return entitygraph.base_api_client.make_request('DELETE', endpoint)
-
-    def delete_by_label(self, label: str):
-        app = self.get_by_label(label)
-        if app is not None:
-            endpoint = f"api/applications/{self.key}"
-            return entitygraph.base_api_client.make_request('DELETE', endpoint)
-
-    def delete_by_key(self, key: str):
-        endpoint = f"api/applications/{key}"
-        return entitygraph.base_api_client.make_request('DELETE', endpoint)
-
-    def get_all(self) -> List['Application']:
-        endpoint = "api/applications"
-        response: Response = entitygraph.base_api_client.make_request('GET', endpoint)
-
-        cache = []
-        for x in response.json():
-            app = Application(label=x.get('label'),
-                              flags=x.get('flags'),
-                              configuration=x.get('configuration'),
-                              )
-            app.key = x.get('key')
-            cache.append(app)
-
-        return cache
-
-    def get_by_key(self, key: str) -> 'Application':
-        endpoint = f"api/applications/{key}"
-        response: Response = entitygraph.base_api_client.make_request('GET', endpoint)
-
-        response: dict = response.json()
-
-        if response is not None:
-            app = Application(label=response.get('label'),
-                              flags=response.get('flags'),
-                              configuration=response.get('configuration'),
-                              )
-            app.key = response.get('key')
-            return app
-
-    def get_by_label(self, label: str) -> 'Application':
-        endpoint = "api/applications"
-        response: Response = entitygraph.base_api_client.make_request('GET', endpoint)
-
-        for x in response.json():
-            if x.get('label') == label:
-                app = Application(label=x.get('label'),
-                                  flags=x.get('flags'),
-                                  configuration=x.get('configuration'),
-                                  )
-                app.key = x.get('key')
-                return app
-
-    def create_subscription(self, label: str) -> str:
+        :param entity_id: ID of the entity to delete.
+        :type entity_id: str
+        :param application_label: The application label of the entity.
+        :type application_label: str
         """
-        :param label: Subscription label
-        :return: Subscription key
-        """
-        self.__check_key()
-        endpoint = f"api/applications/{self.key}/subscriptions"
-        headers = {'Content-Type': 'application/json'}
+
+        endpoint = f"api/entities/{entity_id}"
+        headers = {
+            'X-Application': application_label,
+            'Accept': 'application/ld+json'
+        }
         response: Response = entitygraph.base_api_client.make_request(
-            'POST',
+            'DELETE',
             endpoint,
-            headers=headers,
-            data={"label": label}
+            headers=headers
         )
+        response.raise_for_status()
 
-        return response.json()['key']
-
-    def get_subscriptions(self) -> List[dict]:
-        self.__check_key()
-
-        endpoint = f"api/applications/{self.key}/subscriptions"
-        response: Response = entitygraph.base_api_client.make_request('GET', endpoint)
-
-        return response.json()
-
-    def delete_subscription(self, label: str):
-        self.__check_key()
-
-        endpoint = f"api/applications/{self.key}/subscriptions/{label}"
-        return entitygraph.base_api_client.make_request('DELETE', endpoint)
-
-    def set_configuration(self, key: str, value: str | dict):
-        """
-        Sets or updates a configuration parameter
-
-        :param key: Configuration key
-        :param value: Configuration value
-        """
-        self.__check_key()
-
-        endpoint = f"api/applications/{self.key}/configuration/{key}"
-        return entitygraph.base_api_client.make_request('POST', endpoint,
-                                                        data=value if isinstance(value, str) else json.dumps(value))
-
-    def delete_configuration(self, key: str):
-        self.__check_key()
-
-        endpoint = f"api/applications/{self.key}/configuration/{key}"
-        return entitygraph.base_api_client.make_request('DELETE', endpoint)

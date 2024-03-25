@@ -1,5 +1,6 @@
 # from http://prefix.cc/popular/all.file.json
 namespace_map = {
+    "https://w3id.org/eav/": "eav",
     "http://www.loc.gov/mads/rdf/v1#": "mads",
     "http://id.loc.gov/ontologies/bflc/": "bflc",
     "http://xmlns.com/foaf/0.1/": "xmlns", "http://www.w3.org/1999/02/22-rdf-syntax-ns#": "rdf",
