@@ -106,11 +106,14 @@ class ValuesAndRelationsBase(entitygraph.IContainerAbstract):
         """Get all added content.
         """
 
+        # TODO Check ID
         return [content for content in self._content_lst if content not in self._load_content()]
 
     def removed_content(self) -> list[str]:
         """Get all removed content.
         """
+
+        # TODO Check ID
         return [content for content in self._load_content() if content not in self._content_lst]
 
     def _load_content(self) -> list:

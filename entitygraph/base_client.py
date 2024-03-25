@@ -54,9 +54,9 @@ class BaseApiClient:
             prepared_request: PreparedRequest = s.prepare_request(request)
             response: Response = s.send(prepared_request, verify=not self.ignore_ssl)
 
-        if response.status_code not in range(200, 300):
-            raise Exception(
-                f"Request {{'url': {request.url}, 'headers': {request.headers}}} "
-                f"failed with status {response.status_code}. Response: {response.text}")
+        # Let the classes using this method handle the error
+        if not response.ok:
+            logger.warning(f"Request {{'url': {request.url}, 'headers': {request.headers}}} "
+                           f"failed with status {response.status_code}. Response: {response.text}")
 
         return response

@@ -2,7 +2,7 @@
 This is a Python client for the [Maverick EntityGraph](https://github.com/bechtleav360/Maverick.EntityGraph).
 ## Requirements.
 
-Python 3.7+
+Python 3.10+
 
 ## Installation & Usage
 Activate your virtual environment and run either
@@ -33,36 +33,83 @@ import entitygraph
 ```
 
 
-## Getting started
-
-
 ## Getting Started
+This client represents entity graph objects using an Entity object.
+Before working with the entity graph, a connection must be established:
+```python
+from entitygraph import connect
+
+connect("vuIZS&JC6KI7pOW47$GZ")
+```
+
+An entity object can either be newly created or already exist:
 
 ```python
-import entitygraph as meg
+from entitygraph import Entity, connect
+
+connect("vuIZS&JC6KI7pOW47$GZ")
+
+# Creates a new entity
+new_entity = Entity("application_label")
+
+# Creates an existing entity
+entity = Entity("application_label", id_="entitygraph object id")
+```
+
+If an entity is newly created, it must contain at least one type and one value/relation before saving:
+```python
+from entitygraph import Entity, connect
+
+connect("vuIZS&JC6KI7pOW47$GZ")
+
+# Creates a new entity
+new_entity = Entity("application_label")
+# Add a new type
+new_entity.types = "https://schema.org/LearningRecource"
+```
+
+Every entity contains values and relations for given predicates.
+To add a new value/relation to an entity access the dictionary-like values/relations property:
+
+```python
+from entitygraph import Entity, connect
+
+connect("vuIZS&JC6KI7pOW47$GZ")
+
+entity = Entity("application_label")
+
+# Add a value using a valid url:
+entity.values["https://schema.org/name"] = "Name of your entity"
+# Add a value using rdflib's SDO
+from rdflib import SDO
+entity.values[SDO.text] = "Text of your entity"
+
+# Multiple values for one predicate can be added at the same time:
+entity.values[SDO.keywords] = ["entity graph", "python", "client"]
+
+# All values can be accessed using the items method
+# This will load all values and their content for an existing entity
+print(entity.values.items())
+```
+
+Since there is no update logic for literals associated with a predicate, if a value should be replaced,
+the old on must be deleted:
+
+```python
+from entitygraph import Entity, connect
 from rdflib import SDO
 
-# Defining the host is optional and defaults to https://entitygraph.azurewebsites.net
-meg.connect(api_key="...", host="...")
+connect("vuIZS&JC6KI7pOW47$GZ")
 
-# Fetch an entity from the graph
-author: meg.Entity = meg.Entity().get_by_id("...")
+entity = Entity("application_label", id_="entitygraph object id")
 
-# Create a new entity
-builder: meg.EntityBuilder = self.app.EntityBuilder(types=SDO.CreativeWork)
-builder.addValue(SDO.title, "My new publication")
-builder.addRelation(SDO.author, author)
-article: meg.Entity = builder.build()
+# Multiple values for one predicate can be added at the same time:
+entity.values[SDO.keywords] = "entity graph", "python3.7", "client"
+print(entity.values.items())
 
-## Commit entity to graph
-article.save()
-
-# For application-specific operations, the Application class is essential. 
-# In the following code, an application named "MyApp" is being retrieved. 
-# Then, an entity with id "f3f34f" is obtained and converted into the n3 format.
-n3: str = meg.Application().get_by_label("MyApp").Entity().get_by_id("f3f34f").n3()
-
-# For operations within the default application, the Admin, Entity, and Query classes can be directly invoked.
-# In the example below, an entity with id "g93h4g8" is retrieved and its "foaf.name" value is updated to "New Name".
-Entity().get_by_id("g93h4g8").set_value(SDO.title, "New Name")
+# Remove old value...
+entity.values[SDO.keywords].remove_content("python3.7")
+# ...and add new one
+entity.values[SDO.keywords] = "python3.10"
+print(entity.values.items())
 ```

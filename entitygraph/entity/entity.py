@@ -86,6 +86,7 @@ class Entity:
             self._types = self._load_types()
         return self._types
 
+    # TODO Add Multiple types at once
     @types.setter
     def types(self, new_type: str | URIRef):
         """Add a new type to a new entity

@@ -150,7 +150,7 @@ class Application:
         response.raise_for_status()
 
     @staticmethod
-    def delete_detail(entity_id: str, detail: entitygraph.Detail):
+    def _delete_detail(entity_id: str, detail: entitygraph.Detail):
         """
         Delete a detail.
 
@@ -175,7 +175,7 @@ class Application:
         """
         Create a new entity from an entity object.
 
-        :param entity: A entity object without an ID.
+        :param entity: An entity object without an ID.
 
         :return: The given entity.
         """
@@ -222,12 +222,11 @@ class Application:
         entity_as_turtle = graph.serialize(format='turtle')
         logger.info("Creating new graph:")
         logger.info(f"{entity_as_turtle}")
-        print(f"{entity_as_turtle}")
 
         headers = {
             'X-Application': entity.application_label,
             'Content-Type': "text/turtle",
-            'Accept': "application/json"
+            'Accept': "application/ld+json"
         }
         response: Response = entitygraph.base_api_client.make_request(
             'POST',
@@ -249,7 +248,7 @@ class Application:
                     for detail in details:
                         if detail.has_changes():
                             if detail.remove_old:
-                                Application.delete_detail(new_entity_id, detail)
+                                Application._delete_detail(new_entity_id, detail)
                             Application._save_detail(new_entity_id, detail)
 
         return entitygraph.Entity(entity.application_label, id_=new_entity_id)
@@ -316,7 +315,6 @@ class Application:
                 'DELETE',
                 endpoint,
                 headers=headers,
-                data=content,
                 params=params
             )
             response.raise_for_status()
@@ -342,7 +340,7 @@ class Application:
                     for detail in details:
                         if detail.has_changes():
                             if detail.remove_old:
-                                Application.delete_detail(entity.id, detail)
+                                Application._delete_detail(entity.id, detail)
                             Application._save_detail(entity.id, detail)
 
         return entity
