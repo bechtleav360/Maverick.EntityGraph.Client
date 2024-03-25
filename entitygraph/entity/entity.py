@@ -88,33 +88,42 @@ class Entity:
 
     # TODO Add Multiple types at once
     @types.setter
-    def types(self, new_type: str | URIRef):
+    def types(self, *new_types: str | URIRef):
         """Add a new type to a new entity
 
         New type can only be added to new entities, that have not yet been saved on the entity graph.
 
-        :param new_type: One of the types of this entity.
-        :type new_type: str | URIRef
+        :param new_types: One of the types of this entity.
+        :type new_types: str | URIRef
         """
+
+        if isinstance(*new_types, tuple):
+            new_types = list(*new_types)
+        elif isinstance(*new_types, list):
+            new_types = new_types[0]
+        else:
+            new_types = [str(*new_types)]
 
         if self._id is not None:
             logger.error("Cannot add new type to an already existing entity.")
             raise ValueError("Cannot add new type to an already existing entity.")
 
-        if isinstance(new_type, str):
-            new_type = URIRef(new_type)
-        elif not isinstance(new_type, URIRef):
-            logger.error("Cannot add new type to an already existing entity.")
-            raise ValueError("Cannot add new type to an already existing entity.")
+        bad_types = [type_ for type_ in new_types if type(type_) not in (str, URIRef)
+                     or not uri_is_valid_predicate(type_)]
+        if bad_types:
+            for bad_type in bad_types:
+                if bad_type in (str, URIRef):
+                    logger.error(f"Entity types must be string or URIRef. Got type {type(bad_type)} instead.")
+                else:
+                    logger.error(f"Entity types must be valid namespaces. {bad_type} is not a valid namespace.")
+            raise TypeError(f"Entity types can only be of types string or URIRef and have to be valid namespaces.")
 
-        if not uri_is_valid_predicate(new_type):
-            raise ValueError(f"Cannot add Type {new_type}. The given predicate must be a valid "
-                             f"predicate in the context of the entity graph (i.e. part of the namespace_map).")
+        new_types = [new_type if isinstance(new_type, URIRef) else URIRef(new_type) for new_type in new_types]
 
         if self._types is None:
-            self._types = [new_type]
+            self._types = new_types
         else:
-            self._types.append(new_type)
+            self._types.extend(new_types)
 
     @property
     def uri_ref(self) -> URIRef:

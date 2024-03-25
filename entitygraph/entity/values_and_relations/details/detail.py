@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 import entitygraph
 import json
 import logging
@@ -120,7 +122,7 @@ class Detail(entitygraph.IContainerAbstract):
 
         return self._updated
 
-    def _load_detail(self) -> dict:
+    def _load_detail(self) -> str:
         """Load the content of this detail from the entitygraph
         """
 
@@ -144,8 +146,12 @@ class Detail(entitygraph.IContainerAbstract):
             logger.error(f"Error when trying to load details from {endpoint} for value {self._value_predicate}.")
             raise http_e
 
-        return [loaded_details for loaded_details in response.json()
-                if response.json()["metadata"]["hash"] == self.value_identifier][0][self._predicate]
+        for loaded_value in response.json():
+            if loaded_value["metadata"]["hash"] == self.value_identifier:
+                if self._predicate.split(".")[-1] in loaded_value["details"]:
+                    return loaded_value["details"][self._predicate.split(".")[-1]]
+
+        return ""
 
     def set_content(self, content: str | int | float):
         """Adds the given content
@@ -192,7 +198,9 @@ class DetailContainer(entitygraph.Container):
                 - entity_id
         """
 
-        super().__init__(Detail, application_label, entity_id=entity_id, **kwargs)
+        super().__init__(application_label, entity_id=entity_id, **kwargs)
+        self._icontainer = Detail
+        self._content: dict[str, Detail] = {}
 
     def __getitem__(self, predicate: str | URIRef) -> Detail:
         """Getter for a Detail object
@@ -203,8 +211,54 @@ class DetailContainer(entitygraph.Container):
         :return: A Detail object.
         :rtype: Detail
         """
+        if uri_ref_to_prefixed(predicate).split(".")[-1] not in allowed_details_properties:
+            logger.error(f"Invalid predicate {predicate}. Allowed predicates are {allowed_details_properties}")
+            raise ValueError(f"Invalid predicate {predicate}")
 
         return super().__getitem__(predicate)
+
+    def __setitem__(self, predicate: str | URIRef, literal: str):
+        """Setter for a Value object
+
+        :param predicate: A valid predicate in the context of the entitygraph.
+        :type predicate: str | URIRef
+        :param literal: A literal.
+        :type literal: str
+        """
+
+        self.__getitem__(predicate).set_content(literal)
+
+    def _load_all_predicates(self, relative_path: str):
+        """Override of helper for allowing loading of all predicates (for iteration)
+
+        :param relative_path: The relative path of the value/relation/detail.
+        :type relative_path: str
+        """
+
+        prefixed_predicate = uri_ref_to_prefixed(URIRef(self._additional_class_arguments["value_predicate"]))
+        value_identifier = generate_value_identifier(
+                self._additional_class_arguments["value_predicate"], self._additional_class_arguments["value"])
+
+        endpoint = f'api/entities/{self._entity_id}/values?prefixedProperty={prefixed_predicate}'
+        headers = {'X-Application': self._application_label, 'accept': 'application/json'}
+        response: requests.Response = entitygraph.base_api_client.make_request(
+            'GET',
+            endpoint,
+            headers=headers,
+            params={"valueIdentifier": value_identifier}
+        )
+
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as http_e:
+            logger.error(f"Error when trying to load predicates from {endpoint}.")
+            raise http_e
+
+        for loaded_value in response.json():
+            if loaded_value["metadata"]["hash"] == value_identifier:
+                return [f"eav.{detail}" for detail in loaded_value["details"]]
+
+        return []
 
     def load_all_predicates(self):
         """Allows loading all predicates (for iteration)
@@ -214,4 +268,13 @@ class DetailContainer(entitygraph.Container):
 
         for value_obj in values_info:
             # Getting the item once instantiates a new Value object
-            self.__getitem__(value_obj["property"])
+            self.__getitem__(value_obj)
+
+    def items(self) -> List[Tuple[str, str]]:
+        """Analog to dict.items()
+
+        :return: List of tuples of predicate and content.
+        :rtype: List[Tuple[str, List[str]]]
+        """
+
+        return [(predicate, content.content) for predicate, content in self._content.items()]

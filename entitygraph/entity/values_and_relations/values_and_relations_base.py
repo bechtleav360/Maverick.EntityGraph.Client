@@ -150,8 +150,11 @@ class ValuesAndRelationsBase(entitygraph.IContainerAbstract):
         :param content_lst: One or multiple literal(s).
         :param allowed_types: A set of all types allowed as content.
         """
+
         if isinstance(*content_lst, tuple):
             content_lst = list(*content_lst)
+        elif isinstance(*content_lst, list):
+            content_lst = content_lst[0]
         else:
             content_lst = [str(*content_lst)]
 
@@ -226,36 +229,19 @@ class ValuesAndRelationsBase(entitygraph.IContainerAbstract):
 
         return self._updated
 
-    def get_details(self, value: str) -> entitygraph.DetailContainer:
-        """Getter for the details for one value.
+    def details(self, value: str) -> entitygraph.DetailContainer:
+        """Access the details for a given value
 
-        :param value: The literal the details are attached to.
+        :param value: A value, that is already present in the content list.
         :type value: str
 
-        :return: All details for one value.
+        :return: A DetailContainer where all details are stored in.
+        :rtype: entitygraph.DetailContainer
         """
 
-        if value not in self._content_lst:
-            logger.error(f"Predicate {self.predicate} does not contain value {value}.")
-            raise ValueError(f"Value {value} does not exist for predicate {self.predicate}.")
-
-        if value in self._details:
-            return self._details[value]
-
-    def add_detail(self, value: str, detail_predicate: str, content: str):
-        """Add new detail for a single value.
-
-        :param value: Literal to add a detail to.
-        :type value: str
-        :param detail_predicate: The predicate of this detail.
-        :type detail_predicate: str
-        :param content: The content of the detail to add.
-        :type content: str
-        """
-
-        if value not in self._content_lst:
-            logger.error(f"Predicate {self.predicate} does not contain value {value}.")
-            raise ValueError(f"Value {value} does not exist for predicate {self.predicate}.")
+        if value not in self.content_lst():
+            logger.error(f"Value {value} does not exist for {self._predicate}, so no detail can be added.")
+            raise ValueError(f"Value {value} does not exist for {self._predicate}, so no detail can be added.")
 
         if value not in self._details:
             self._details[value] = entitygraph.DetailContainer(
@@ -264,8 +250,7 @@ class ValuesAndRelationsBase(entitygraph.IContainerAbstract):
                 value_predicate=self._predicate,
                 value=value
             )
-
-        self._details[value][detail_predicate].set_content(content)
+        return self._details[value]
 
 
 

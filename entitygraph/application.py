@@ -144,7 +144,7 @@ class Application:
             'POST',
             f'api/entities/{entity_id}/values/{detail.value_predicate}/details/{detail.predicate}',
             headers=headers,
-            data=detail.content_lst()[0],
+            data=detail.content.encode('utf-8'),
             params=params
         )
         response.raise_for_status()
@@ -243,13 +243,12 @@ class Application:
         # Save details
         for value_ in entity.values:
             for literal in value_.content_lst():
-                details: entitygraph.DetailContainer = value_.get_details(literal)
-                if details is not None:
-                    for detail in details:
-                        if detail.has_changes():
-                            if detail.remove_old:
-                                Application._delete_detail(new_entity_id, detail)
-                            Application._save_detail(new_entity_id, detail)
+                details: entitygraph.DetailContainer = value_.details(literal)
+                for detail in details:
+                    if detail.has_changes():
+                        if detail.remove_old:
+                            Application._delete_detail(new_entity_id, detail)
+                        Application._save_detail(new_entity_id, detail)
 
         return entitygraph.Entity(entity.application_label, id_=new_entity_id)
 
@@ -335,13 +334,12 @@ class Application:
         # Save details
         for value_ in entity.values:
             for literal in value_.content_lst():
-                details: entitygraph.DetailContainer = value_.get_details(literal)
-                if details is not None:
-                    for detail in details:
-                        if detail.has_changes():
-                            if detail.remove_old:
-                                Application._delete_detail(entity.id, detail)
-                            Application._save_detail(entity.id, detail)
+                details: entitygraph.DetailContainer = value_.details(literal)
+                for detail in details:
+                    if detail.has_changes():
+                        if detail.remove_old:
+                            Application._delete_detail(entity.id, detail)
+                        Application._save_detail(entity.id, detail)
 
         return entity
 

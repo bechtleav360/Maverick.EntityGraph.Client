@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 class Container(ABC):
     def __init__(
             self,
-            icontainer: Type[entitygraph.IContainerAbstract],
             application_label: str,
             entity_id: (str, None) = None,
             **kwargs
@@ -30,7 +29,7 @@ class Container(ABC):
         :param kwargs: Additional keyword arguments for instantiating IContainerAbstract class instances.
         """
 
-        self._icontainer = icontainer
+        self._icontainer = entitygraph.IContainerAbstract
         self._application_label = application_label
         self._entity_id = entity_id
 
@@ -109,6 +108,7 @@ class Container(ABC):
             self.load_all_predicates()
         return iter([value for value in self._content.values()])
 
+    @abstractmethod
     def items(self) -> List[Tuple[str, List[str]]]:
         """Analog to dict.items()
 
@@ -116,9 +116,6 @@ class Container(ABC):
         :rtype: List[Tuple[str, List[str]]]
         """
 
-        return [(predicate, content.content_lst()) for predicate, content in self._content.items()]
-
-
-
+        raise NotImplementedError()
 
 

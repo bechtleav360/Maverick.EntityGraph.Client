@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 import entitygraph
 import logging
 
@@ -53,7 +55,9 @@ class ValueContainer(entitygraph.Container):
             Optional:
                 - entity_id
         """
-        super().__init__(Value, application_label, entity_id=entity_id, **kwargs)
+        super().__init__(application_label, entity_id=entity_id, **kwargs)
+        self._icontainer = Value
+        self._content: dict[str, Value] = {}
 
     def __getitem__(self, predicate:str | URIRef) -> Value:
         """Getter for a Value object
@@ -86,4 +90,13 @@ class ValueContainer(entitygraph.Container):
         for value_obj in values_info:
             # Getting the item once instantiates a new Value object
             self.__getitem__(value_obj["property"])
+
+    def items(self) -> List[Tuple[str, List[str]]]:
+        """Analog to dict.items()
+
+        :return: List of tuples of predicate and content.
+        :rtype: List[Tuple[str, List[str]]]
+        """
+
+        return [(predicate, content.content_lst()) for predicate, content in self._content.items()]
 
