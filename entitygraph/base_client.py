@@ -7,29 +7,34 @@ from requests import Response, Request, PreparedRequest
 logger = logging.getLogger(__name__)
 
 
+# TODO Add Sessions(?) and Threading for multiple calls at the same time
 class BaseApiClient:
     def __init__(self, api_key: str, base_url: str, ignore_ssl: bool = False):
-        """
-        Base Client for making requests to the entitygraph API.
+        """Base Client for making requests to the entitygraph API
 
         :param api_key: Authorization key.
+        :type api_key: str
         :param base_url: The host address of the entitygraph API.
-        :param ignore_ssl: For ignoring ssl verification, if necessary.
+        :type base_url: str
+        :param ignore_ssl: For ignoring ssl verification, if necessary. False by default.
+        :type ignore_ssl: bool
         """
         self.base_url = base_url
         self.api_key = api_key
         self.ignore_ssl = ignore_ssl
 
-    def make_request(self, method: str, endpoint: str, **kwargs):
-        """
-        Sends a request to the entitygraph API.
+    def make_request(self, method: str, endpoint: str, **kwargs) -> Response:
+        """Sends a request to the entitygraph API
 
         :param method: Analog to requests module methods.
+        :type method: str
         :param endpoint: The relative entitygraph API endpoint.
+        :type endpoint: str
         :param kwargs: Additional parameters for the request. The X-API-KEY is automatically added to the "headers"
             parameters. The "data" parameters is converted to a json string, if a dictionary or a list are given.
 
-        :return: The requests response.
+        :return: The request's response.
+        :rtype: Response
         """
         url = f"{self.base_url}/{endpoint}"
         kwargs["headers"] = kwargs["headers"] if "headers" in kwargs else {}
@@ -55,31 +60,3 @@ class BaseApiClient:
                 f"failed with status {response.status_code}. Response: {response.text}")
 
         return response
-
-    # async def make_async_request(self, method, endpoint, headers=None, params=None, data=None, files=None):
-    #     url = f"{self.base_url}/{endpoint}"
-    #     headers = headers or {}
-    #     headers.update({
-    #         'X-API-KEY': self.api_key
-    #     })
-    #
-    #     if data and isinstance(data, dict):
-    #         data = json.dumps(data)
-    #
-    #     async with httpx.AsyncClient(verify=not self.ignore_ssl) as client:
-    #         if method.lower() == 'get':
-    #             response = await client.get(url, headers=headers, params=params)
-    #         elif method.lower() == 'post':
-    #             response = await client.post(url, headers=headers, data=data, files=files)
-    #         elif method.lower() == 'put':
-    #             response = await client.put(url, headers=headers, data=data, files=files)
-    #         elif method.lower() == 'delete':
-    #             response = await client.delete(url, headers=headers)
-    #         else:
-    #             raise ValueError(f"HTTP method '{method}' not supported")
-    #
-    #     if response.status_code not in range(200, 300):
-    #         raise Exception(
-    #             f"Request failed with status {response.status_code}. Response: {response.text}")
-    #
-    #     return response
