@@ -68,35 +68,54 @@ def uri_ref_to_prefixed(predicate: str | URIRef) -> str:
                          f'Please make sure the URL is correct.')
 
 
-def generate_value_identifier(predicate: str, value: str) -> str:
+def predicate_to_uri(predicate: str | URIRef) -> str:
+    """Transforms a predicate of different forms into a URI.
+
+    :param predicate: Any valid predicate in the context of the entity graph
+    (e.g. string "sdo.name", URIRef "SDO.name", ...)
+    :return: A URI representation of the predicate, e.g. "https://schema.org/name".
+    """
+
+    if isinstance(predicate, URIRef):
+        # If a URI Ref was given, simply converting it to a string does the trick
+        predicate = str(predicate)
+    if not isinstance(predicate, str):
+        logger.error(f"Predicate must be a string or URIRef. Got {type(predicate)} instead.")
+        raise ValueError(f"Predicate must be a string or URIRef. Got {type(predicate)} instead.")
+
+    if not predicate.startswith("http"):
+        # If the string is not a URI jet, the form prefix.predicateName is assumed.
+        if not "." in predicate and len(predicate.split(".")) == 2:
+            logger.error(f"Got unexpected format for predicate:{predicate}.")
+            raise ValueError(f"Got unexpected format for predicate:{predicate}.")
+        # Reverse search within the namespace_map
+        corrected_predicate = predicate
+        for key, value_ in namespace_map.items():
+            if value_ == predicate.split('.')[0]:
+                return key + predicate.split('.')[1]
+
+        raise ValueError(f"No matching URI found for predicate: {predicate}.")
+    else:
+        return predicate
+
+
+def generate_value_identifier(predicate: str | URIRef, value: str) -> str:
     """Generates a value identifier from predicate and value as strings using SHA-256 hash
 
     :param predicate: A predicate allowed in the entitygraph.
-    :type predicate: str
+    :type predicate: str | URIRef
     :param value: A string.
     :type value: str
 
     :return: The generated value identifier (SHA-256 hash).
     :rtype: str
     """
-    # Check for None property or value
-    if not isinstance(predicate, str):
-        logger.error(f"Property must be a string. Got {type(predicate)} instead.")
-        raise ValueError(f"Property must be a string. Got {type(predicate)} instead.")
+
     if not isinstance(value, str):
         logger.error(f"Value must be a string. Got {type(value)} instead.")
         raise ValueError(f"Value must be a string. Got {type(value)} instead.")
 
-    corrected_predicate = predicate
-    if not predicate.startswith("http"):
-        for key, value_ in namespace_map.items():
-            if value_ == predicate.split('.')[0]:
-                corrected_predicate = key + predicate.split('.')[1]
-                break
-
-    if not corrected_predicate.startswith("http"):
-        raise ValueError(f"Invalid predicate {corrected_predicate}")
-
+    corrected_predicate = predicate_to_uri(predicate)
     try:
         combined_string = corrected_predicate + value
         # Calculate SHA-256 hash of the combined string

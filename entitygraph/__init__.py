@@ -1,4 +1,4 @@
-__version__ = "0.1.00"
+__version__ = "0.1.1"
 
 from entitygraph.admin import Admin
 from entitygraph.base_client import BaseApiClient
