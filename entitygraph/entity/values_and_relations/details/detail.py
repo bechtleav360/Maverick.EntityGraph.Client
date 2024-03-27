@@ -10,13 +10,17 @@ from typing import List, Tuple, Dict
 logger = logging.getLogger(__name__)
 
 # List of all allowed URI's to save details under
-# TODO: Load list from online recourse
+# TODO: Load list from online recourse or let API take care of evaluation
 allowed_details_properties = [
     "confidence",
-    "created",
+    "explanation",
     "model",
+    "created",
     "status",
-    "updated"
+    "updated",
+    "cosSimilarity",
+    "method",
+    "script"
 ]
 
 
