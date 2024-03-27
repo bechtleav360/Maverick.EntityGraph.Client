@@ -281,7 +281,7 @@ class DetailContainer(entitygraph.Container):
     def to_dict(self) -> Dict[str, str]:
         """Convert to dictionary
 
-        Converts all values into a dictionary of the form predicate: content list, for each predicate in the entity.
+        Converts all values into a dictionary of the form predicate: content, for each predicate in the entity.
 
         :rtype: Dict[str, str]
         """
