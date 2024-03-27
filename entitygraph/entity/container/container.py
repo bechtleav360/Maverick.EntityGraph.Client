@@ -118,4 +118,13 @@ class Container(ABC):
 
         raise NotImplementedError()
 
+    @abstractmethod
+    def to_dict(self) -> dict:
+        """Convert to dictionary
+
+        Converts all values into a dictionary of the form predicate: content, for each predicate in the entity.
+        """
+
+        raise NotImplementedError()
+
 

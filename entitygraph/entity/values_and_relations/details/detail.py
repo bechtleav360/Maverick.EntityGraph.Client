@@ -1,12 +1,11 @@
-from typing import List, Tuple
-
 import entitygraph
 import json
 import logging
 import requests
 
+from entitygraph.utils import predicate_to_uri, uri_ref_to_prefixed, generate_value_identifier
 from rdflib import URIRef
-from entitygraph.utils import uri_ref_to_prefixed, generate_value_identifier
+from typing import List, Tuple, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -278,3 +277,13 @@ class DetailContainer(entitygraph.Container):
         """
 
         return [(predicate, content.content) for predicate, content in self._content.items()]
+
+    def to_dict(self) -> Dict[str, str]:
+        """Convert to dictionary
+
+        Converts all values into a dictionary of the form predicate: content list, for each predicate in the entity.
+
+        :rtype: Dict[str, str]
+        """
+
+        return {predicate_to_uri(predicate): content for predicate, content in self.items()}
