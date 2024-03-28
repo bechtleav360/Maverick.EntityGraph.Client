@@ -251,22 +251,17 @@ class Application:
         logger.info(f"Created new entity with id {new_entity_id}")
 
         # Save details
-        for entity_value in entity.values:
-            for literal_ in entity_value.content_lst():
-                details: entitygraph.DetailContainer = entity_value.details(literal_)
-                b = 1
+        for predicate, content_lst in entity.values.items():
+            for literal_ in content_lst:
+                details: entitygraph.DetailContainer = entity.values[predicate].details(literal_)
                 for detail in details:
                     if detail.has_changes():
                         if detail.remove_old:
-                            pass
-                            # delete_detail(new_entity_id, detail)
-                        # save_detail(new_entity_id, detail)
-                        a = 1
+                            delete_detail(new_entity_id, detail)
+                        save_detail(new_entity_id, detail)
 
-        # entity.add_id(new_entity_id)
+        entity.add_id(new_entity_id)
 
-        # import sys
-        # sys.exit()
         return entitygraph.Entity(entity.application_label, id_=new_entity_id)
 
     @staticmethod
@@ -355,9 +350,9 @@ class Application:
         #         remove_value_from_entity_remote("relations", relation, removed_content)
 
         # Save details
-        for value_ in entity.values:
-            for literal in value_.content_lst():
-                details: entitygraph.DetailContainer = value_.details(literal)
+        for predicate, content_lst in entity.values.items():
+            for literal_ in content_lst:
+                details: entitygraph.DetailContainer = entity.values[predicate].details(literal_)
                 for detail in details:
                     if detail.has_changes():
                         if detail.remove_old:
