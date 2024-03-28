@@ -106,15 +106,21 @@ class ValuesAndRelationsBase(entitygraph.IContainerAbstract):
         """Get all added content.
         """
 
-        # TODO Check ID
-        return [content for content in self._content_lst if content not in self._load_content()]
+        if self.entity_id is not None:
+            return [content for content in self._content_lst if content not in self._load_content()]
+        else:
+            # Since this must be a new value in a new entity, all content must be new
+            return self._content_lst
 
     def removed_content(self) -> list[str]:
         """Get all removed content.
         """
 
-        # TODO Check ID
-        return [content for content in self._load_content() if content not in self._content_lst]
+        if self.entity_id is not None:
+            return [content for content in self._load_content() if content not in self._content_lst]
+        else:
+            # Since nothing exists jet, nothing could have been removed...
+            return []
 
     def _load_content(self) -> list:
         """Loads all values for this instance's property.

@@ -13,6 +13,50 @@ from requests import Response
 logger = logging.getLogger(__name__)
 
 
+def save_detail(entity_id: str, detail: entitygraph.Detail):
+    """
+    Save a detail
+
+    :param entity_id: The id of the entity, this detail belongs to.
+    :param detail: A detail class object.
+    """
+    headers = {
+        'X-Application': detail.application_label,
+        'Content-Type': "text/plain",
+        'Accept': "text/turtle"
+    }
+    params = {"valueIdentifier": detail.value_identifier}
+    response: Response = entitygraph.base_api_client.make_request(
+        'POST',
+        f'api/entities/{entity_id}/values/{detail.value_predicate}/details/{detail.predicate}',
+        headers=headers,
+        data=detail.content.encode('utf-8'),
+        params=params
+    )
+    response.raise_for_status()
+
+
+def delete_detail(entity_id: str, detail: entitygraph.Detail):
+    """
+    Delete a detail.
+
+    :param entity_id: The id of the entity, this detail belongs to.
+    :param detail: A detail class object.
+    """
+    headers = {
+        'X-Application': detail.application_label,
+        'Accept': "text/turtle"
+    }
+    params = {"valueIdentifier": detail.value_identifier}
+    response: Response = entitygraph.base_api_client.make_request(
+        'DELETE',
+        f'api/entities/{entity_id}/values/{detail.value_predicate}/details/{detail.predicate}',
+        headers=headers,
+        params=params
+    )
+    response.raise_for_status()
+
+
 class Application:
     """Static class providing API connection methods for entities/query/application labels
     """
@@ -127,50 +171,6 @@ class Application:
             raise err
 
     @staticmethod
-    def _save_detail(entity_id: str, detail: entitygraph.Detail):
-        """
-        Save a detail
-
-        :param entity_id: The id of the entity, this detail belongs to.
-        :param detail: A detail class object.
-        """
-        headers = {
-            'X-Application': detail.application_label,
-            'Content-Type': "text/plain",
-            'Accept': "text/turtle"
-        }
-        params = {"valueIdentifier": detail.value_identifier}
-        response: Response = entitygraph.base_api_client.make_request(
-            'POST',
-            f'api/entities/{entity_id}/values/{detail.value_predicate}/details/{detail.predicate}',
-            headers=headers,
-            data=detail.content.encode('utf-8'),
-            params=params
-        )
-        response.raise_for_status()
-
-    @staticmethod
-    def _delete_detail(entity_id: str, detail: entitygraph.Detail):
-        """
-        Delete a detail.
-
-        :param entity_id: The id of the entity, this detail belongs to.
-        :param detail: A detail class object.
-        """
-        headers = {
-            'X-Application': detail.application_label,
-            'Accept': "text/turtle"
-        }
-        params = {"valueIdentifier": detail.value_identifier}
-        response: Response = entitygraph.base_api_client.make_request(
-            'DELETE',
-            f'api/entities/{entity_id}/values/{detail.value_predicate}/details/{detail.predicate}',
-            headers=headers,
-            params=params
-        )
-        response.raise_for_status()
-
-    @staticmethod
     def create_entity(entity: entitygraph.Entity):
         """
         Create a new entity from an entity object.
@@ -187,6 +187,14 @@ class Application:
         graph = Graph()
         node = BNode()
 
+        if entity.types is None:
+            logger.error("To create an entity, add at least one type must have been added.")
+            raise ValueError("To create an entity, add at least one type must have been added.")
+
+        if not entity.values.items():
+            logger.error("To create an entity, add at least one value must have been added.")
+            raise ValueError("To create an entity, add at least one value must have been added.")
+
         # Add entity types to teh graph
         for entity_type in entity.types:
             graph.add((node, RDF.type, URIRef(entity_type)))
@@ -195,8 +203,8 @@ class Application:
         for predicate, content_lst in entity.values.items():
             for literal in content_lst:
                 name = ""
-                for key, value_ in namespace_map.items():
-                    if value_ == predicate.split('.')[0]:
+                for key, entity_value in namespace_map.items():
+                    if entity_value == predicate.split('.')[0]:
                         name = key + predicate.split('.')[1]
                         break
                 if not name:
@@ -237,19 +245,28 @@ class Application:
 
         response.raise_for_status()
         new_entity_id = response.json()["@graph"][0]["@graph"][0]["@id"].split(":")[-1]
+        if entity.application_label in new_entity_id:
+            new_entity_id = new_entity_id.split(".")[-1]
         print(f"Created new entity with id {new_entity_id}")
         logger.info(f"Created new entity with id {new_entity_id}")
 
         # Save details
-        for value_ in entity.values:
-            for literal in value_.content_lst():
-                details: entitygraph.DetailContainer = value_.details(literal)
+        for entity_value in entity.values:
+            for literal_ in entity_value.content_lst():
+                details: entitygraph.DetailContainer = entity_value.details(literal_)
+                b = 1
                 for detail in details:
                     if detail.has_changes():
                         if detail.remove_old:
-                            Application._delete_detail(new_entity_id, detail)
-                        Application._save_detail(new_entity_id, detail)
+                            pass
+                            # delete_detail(new_entity_id, detail)
+                        # save_detail(new_entity_id, detail)
+                        a = 1
 
+        # entity.add_id(new_entity_id)
+
+        # import sys
+        # sys.exit()
         return entitygraph.Entity(entity.application_label, id_=new_entity_id)
 
     @staticmethod
@@ -261,6 +278,12 @@ class Application:
 
         :return: The given entity object.
         """
+
+        if entity.id is None:
+            logger.error("Only already existing entities can be saved using this method. To create a new entity use "
+                         "'create_entity' instead.")
+            raise ValueError("Only already existing entities can be saved using this method. To create a new entity "
+                             "use 'create_entity' instead.")
         def add_value_to_entity_remote(path: str, item: entitygraph.ValuesAndRelationsBase, content: str):
             """Helper for adding new values to the entity graph
 
@@ -338,8 +361,8 @@ class Application:
                 for detail in details:
                     if detail.has_changes():
                         if detail.remove_old:
-                            Application._delete_detail(entity.id, detail)
-                        Application._save_detail(entity.id, detail)
+                            delete_detail(entity.id, detail)
+                        save_detail(entity.id, detail)
 
         return entity
 

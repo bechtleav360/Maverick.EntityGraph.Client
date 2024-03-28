@@ -5,7 +5,7 @@ import requests
 
 from entitygraph.utils import predicate_to_uri, uri_ref_to_prefixed, generate_value_identifier
 from rdflib import URIRef
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -263,15 +263,16 @@ class DetailContainer(entitygraph.Container):
 
         return []
 
-    def load_all_predicates(self):
-        """Allows loading all predicates (for iteration)
+    def __iter__(self) -> Iterator[Detail]:
+        """Allow iteration
+
+        :return: The predicates of the saved data.
+        :rtype: Iterator[Detail]
         """
 
-        values_info = self._load_all_predicates("values")
-
-        for value_obj in values_info:
-            # Getting the item once instantiates a new Value object
-            self.__getitem__(value_obj)
+        if self._entity_id is not None:
+            self._load_all_predicates("values")
+        return iter(value for value in self._content.values())
 
     def items(self) -> List[Tuple[str, str]]:
         """Analog to dict.items()
@@ -280,7 +281,7 @@ class DetailContainer(entitygraph.Container):
         :rtype: List[Tuple[str, List[str]]]
         """
 
-        return [(predicate, content.content) for predicate, content in self._content.items()]
+        return [(detail.predicate, detail.content) for detail in self]
 
     def to_dict(self) -> Dict[str, str]:
         """Convert to dictionary

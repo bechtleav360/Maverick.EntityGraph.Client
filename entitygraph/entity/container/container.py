@@ -50,13 +50,6 @@ class Container(ABC):
 
         return self._entity_id
 
-    @abstractmethod
-    def load_all_predicates(self):
-        """Allows loading all predicates (for iteration)
-        """
-
-        raise NotImplementedError()
-
     def _load_all_predicates(self, relative_path: str):
         """Helper for allowing loading of all predicates (for iteration)
 
@@ -74,7 +67,9 @@ class Container(ABC):
             logger.error(f"Error when trying to load predicates from {endpoint}.")
             raise http_e
 
-        return response.json()
+        for value_obj in response.json():
+            # Getting the item once instantiates a new Value object
+            self.__getitem__(value_obj["property"])
 
     def __getitem__(self, predicate: str | URIRef) -> entitygraph.IContainerAbstract.__subclasses__():
         """Getter for a IContainer object
@@ -97,6 +92,7 @@ class Container(ABC):
 
         return self._content[predicate]
 
+    @abstractmethod
     def __iter__(self) -> entitygraph.IContainerAbstract.__subclasses__():
         """Allow iteration
 
@@ -104,9 +100,7 @@ class Container(ABC):
         :rtype: entitygraph.IContainerAbstract.__subclasses__()
         """
 
-        if self._entity_id is not None:
-            self.load_all_predicates()
-        return iter([value for value in self._content.values()])
+        raise NotImplementedError()
 
     @abstractmethod
     def items(self) -> List[Tuple[str, List[str]]]:
