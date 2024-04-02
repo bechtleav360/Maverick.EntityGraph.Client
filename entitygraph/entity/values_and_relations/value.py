@@ -3,7 +3,7 @@ import logging
 
 from entitygraph.utils import predicate_to_uri
 from rdflib import URIRef
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -81,15 +81,16 @@ class ValueContainer(entitygraph.Container):
 
         self.__getitem__(predicate).add_literals(*literals)
 
-    def load_all_predicates(self):
-        """
-        Allows loading all predicates (for iteration).
-        """
-        values_info = self._load_all_predicates("values")
+    def __iter__(self) -> Iterator[Value]:
+        """Allow iteration
 
-        for value_obj in values_info:
-            # Getting the item once instantiates a new Value object
-            self.__getitem__(value_obj["property"])
+        :return: The predicates of the saved data.
+        :rtype: Iterator[Value]
+        """
+
+        if self._entity_id is not None:
+            self._load_all_predicates("values")
+        return iter(value for value in self._content.values())
 
     def items(self) -> List[Tuple[str, List[str]]]:
         """Analog to dict.items()
@@ -98,7 +99,7 @@ class ValueContainer(entitygraph.Container):
         :rtype: List[Tuple[str, List[str]]]
         """
 
-        return [(predicate, content.content_lst()) for predicate, content in self._content.items()]
+        return [(value.predicate, value.content_lst()) for value in self]
 
     def to_dict(self) -> Dict[str, List[str]]:
         """Convert to dictionary

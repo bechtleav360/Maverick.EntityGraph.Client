@@ -38,11 +38,11 @@ class Entity:
 
         # Check, if id is valid
         if self._id is not None:
-            self._load_types()
+            self._types = self._load_types()
         else:
             self._types: (list[URIRef], None) = None
 
-        self.values: entitygraph.ValueContainer = entitygraph.ValueContainer(self._application_label, entity_id=self._id)
+        self.values = entitygraph.ValueContainer(self._application_label, entity_id=self._id)
         self.relations = entitygraph.RelationContainer(self._application_label, entity_id=self._id)
 
         if self._id is not None:
@@ -177,4 +177,21 @@ class Entity:
         Both the content and the details are not loaded.
         """
         raise NotImplementedError()
+
+    def add_id(self, entity_id: str):
+        """
+
+        :param entity_id:
+        :return:
+        """
+
+        if self._id is not None:
+            logger.error("A ID can only be added for new entities.")
+            raise KeyError("A ID can only be added for new entities.")
+
+        self._id = entity_id
+        # Instantiate both values and relations new with the id
+        self.values = entitygraph.ValueContainer(self._application_label, entity_id=self._id)
+        self.relations = entitygraph.RelationContainer(self._application_label, entity_id=self._id)
+
 
