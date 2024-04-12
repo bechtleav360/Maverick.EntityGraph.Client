@@ -1,3 +1,5 @@
+from json import JSONDecodeError
+
 import entitygraph
 import json
 import logging
@@ -78,6 +80,9 @@ class Detail(entitygraph.IContainerAbstract):
         if self._entity_id is not None and self._content is None:
             self._content = self._load_detail()
 
+        if self._content is None:
+            self._content = ""
+
         return self._content
 
     @property
@@ -113,17 +118,21 @@ class Detail(entitygraph.IContainerAbstract):
 
         return cls(predicate=predicate, **kwargs)
 
-    def content_lst(self) -> list[str]:
-        """Allows access on a copy of all content of this value
-        """
-
-        return [json.dumps(self.content)]
-
     def has_changes(self) -> bool:
         """Indicates, that this Value has been updated
         """
 
-        return self._updated
+        # Did anything happen to the content of this detail
+        if self._updated:
+            # Is this a new entity (id=None)...
+            if self.entity_id is None:
+                # ...and is any content set?
+                return True if self.content else False
+            # If the entity exists, compare to remote, if anything has changed
+            else:
+                return not self._load_detail() == self.content
+        else:
+            return False
 
     def _load_detail(self) -> str:
         """Load the content of this detail from the entitygraph
@@ -143,18 +152,28 @@ class Detail(entitygraph.IContainerAbstract):
             params={"valueIdentifier": self._value_identifier}
         )
 
+        # TODO Rework, if API is updated
+        # 400/404 means detail does not exist, which, in the context of the entitygraph, means the detail is empty.
+        if response.status_code in [400, 404]:
+            return ""
+
+        if response.status_code < 300:
+            for loaded_value in response.json():
+                if loaded_value["metadata"]["hash"] == self.value_identifier:
+                    if self._predicate.split(".")[-1] in loaded_value["details"]:
+                        try:
+                            return json.loads(loaded_value["details"][self._predicate.split(".")[-1]])
+                        except JSONDecodeError:
+                            return loaded_value["details"][self._predicate.split(".")[-1]]
+
+            # If nothing was found, return an empty string
+            return ""
+
         try:
             response.raise_for_status()
         except requests.HTTPError as http_e:
             logger.error(f"Error when trying to load details from {endpoint} for value {self._value_predicate}.")
             raise http_e
-
-        for loaded_value in response.json():
-            if loaded_value["metadata"]["hash"] == self.value_identifier:
-                if self._predicate.split(".")[-1] in loaded_value["details"]:
-                    return loaded_value["details"][self._predicate.split(".")[-1]]
-
-        return ""
 
     def set_content(self, content: str | int | float):
         """Adds the given content
@@ -163,26 +182,35 @@ class Detail(entitygraph.IContainerAbstract):
         :type content: str | int | float
         """
 
-        if type(content) not in (str, int, float):
+        if type(content) not in (str, int, float, dict):
             logger.error(f"Function 'add_content' got unexpected type {type(content)}.")
             raise TypeError(f"Content for Details can only be of types str, int or float.")
 
         if self.content:
             self._remove_old = True
 
-        self._content = str(content)
+        self._content = content
         self._updated = True
 
-    def remove_content(self):
+    def remove_content(self, raise_error_if_not_exists: bool = True):
         """Removes content from this detail
 
         Since None type is used for identifying, if the content has not been accessed jet, it is set to an empty string,
         indicating, that it should be deleted.
+
+        :param raise_error_if_not_exists: By default, this function raises an error, if called, when no content has
+            been set. If this parameter is set to false, no error will be raised.
+        :type raise_error_if_not_exists: bool
         """
 
         if self.content:
-            self._remove_old = True
             self._updated = True
+            self._content = ""
+            if self.entity_id is not None:
+                self._remove_old = True
+        elif raise_error_if_not_exists:
+            raise ValueError(f"Tried to delete non-existent detail with predicate {self.predicate} for value predicate "
+                             f"{self.value_predicate} of entity {self.entity_id}.")
 
 
 class DetailContainer(entitygraph.Container):
@@ -259,9 +287,9 @@ class DetailContainer(entitygraph.Container):
 
         for loaded_value in response.json():
             if loaded_value["metadata"]["hash"] == value_identifier:
-                return [f"eav.{detail}" for detail in loaded_value["details"]]
-
-        return []
+                for detail in loaded_value["details"]:
+                    self.__getitem__(f"eav.{detail}")
+                break
 
     def __iter__(self) -> Iterator[Detail]:
         """Allow iteration
@@ -281,7 +309,7 @@ class DetailContainer(entitygraph.Container):
         :rtype: List[Tuple[str, List[str]]]
         """
 
-        return [(detail.predicate, detail.content) for detail in self]
+        return [(detail.predicate, detail.content) for detail in self if detail.content]
 
     def to_dict(self) -> Dict[str, str]:
         """Convert to dictionary

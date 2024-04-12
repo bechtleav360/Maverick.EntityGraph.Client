@@ -30,7 +30,7 @@ def save_detail(entity_id: str, detail: entitygraph.Detail):
         'POST',
         f'api/entities/{entity_id}/values/{detail.value_predicate}/details/{detail.predicate}',
         headers=headers,
-        data=detail.content.encode('utf-8'),
+        data=json.dumps(detail.content) if isinstance(detail.content, dict) else str(detail.content).encode('utf-8'),
         params=params
     )
     response.raise_for_status()
@@ -258,7 +258,8 @@ class Application:
                     if detail.has_changes():
                         if detail.remove_old:
                             delete_detail(new_entity_id, detail)
-                        save_detail(new_entity_id, detail)
+                        if detail.content:
+                            save_detail(new_entity_id, detail)
 
         entity.add_id(new_entity_id)
 
@@ -357,7 +358,8 @@ class Application:
                     if detail.has_changes():
                         if detail.remove_old:
                             delete_detail(entity.id, detail)
-                        save_detail(entity.id, detail)
+                        if detail.content:
+                            save_detail(entity.id, detail)
 
         return entity
 
