@@ -57,13 +57,6 @@ class IContainerAbstract(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def content_lst(self) -> list:
-        """A private method that returns all content.
-        """
-
-        raise NotImplementedError()
-
-    @abstractmethod
     def has_changes(self) -> bool:
         """Indicates, that this classes data has been updated.
         """
